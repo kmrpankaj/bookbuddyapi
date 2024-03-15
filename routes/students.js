@@ -33,6 +33,27 @@ router.get('/show/:id', getStudents, (req, res) => {
     res.send(res.students)
 })
 
+// This route will match requests to /show/uid/{uid}
+router.get('/show/uid/:uid', getStudentByUid, (req, res) => {
+    res.send(res.student);
+});
+
+async function getStudentByUid(req, res, next) {
+    try {
+        const uid = req.params.uid;
+        // Use Mongoose to find a student by UID
+        const student = await Students.findOne({ uid: uid });
+        if (!student) {
+            return res.status(404).send({ message: 'Student not found' });
+        }
+        res.student = student; // Attach the student to the response object
+        next(); // Proceed to the next middleware function or route handler
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: 'Server error' });
+    }
+}
+
 
 // Updated GET request to get logged-in student's data
 router.get('/student-data/', fetchuser, async (req, res) => {
