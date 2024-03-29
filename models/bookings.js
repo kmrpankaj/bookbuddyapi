@@ -31,6 +31,6 @@ const bookingsSchema = new mongoose.Schema({
         required: true,
     } 
     // discount needs to be added
-})
+}, {timestamp: true})
 
 module.exports = mongoose.model('bookings', bookingsSchema)

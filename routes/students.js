@@ -12,6 +12,7 @@ const { Resend } = require('resend');
 const resend = new Resend('re_KUJpjvYH_9M4jU7u1N25CKkAG4H8qRzmK');
 const multer = require('multer')
 const path = require('path')
+const fs = require('fs'); // fs module to delete files
 
 const siteUrl = process.env.SITE_URL
 
@@ -100,7 +101,7 @@ const storage = multer.diskStorage({
   const upload = multer({ storage: storage, fileFilter: fileFilter, limits: { fileSize: 1024 * 1024 * 5 } }); // Limit of 5MB
 
 
-// Route 2: Creating one with uploads
+// Route 2: Creating one with uploads: Signup
 router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'documentid', maxCount: 1 }]), async (req, res) => {
     let success=false;
     let newUsername;
@@ -180,32 +181,89 @@ router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: '
 
 
 // Updating one
-router.patch('/update/:id', fetchuser, getStudents, async (req, res) => {
-    let success=false;
-    if(req.body.name != null) {
-        res.students.name = req.body.name
-    }
-    if(req.body.email != null){
-        res.students.email = req.body.email
-    }
-    if(req.body.regisDate != null) {
-        res.students.regisDate = req.body.regisDate
-    }
+// router.patch('/update/:id', fetchuser, getStudents, async (req, res) => {
+//     let success=false;
+//     if(req.body.name != null) {
+//         res.students.name = req.body.name
+//     }
+//     if(req.body.email != null){
+//         res.students.email = req.body.email
+//     }
+//     if(req.body.regisDate != null) {
+//         res.students.regisDate = req.body.regisDate
+//     }
 
-    try {
-        const updatedStudents = await Students.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            { new: true }
-        )
-        success=true;
-        res.json({success, updatedStudents})
+//     try {
+//         const updatedStudents = await Students.findByIdAndUpdate(
+//             req.params.id,
+//             req.body,
+//             { new: true }
+//         )
+//         success=true;
+//         res.json({success, updatedStudents})
         
+//     } catch (err) {
+//         res.status(400).json({message: err.message})
+//         success=false
+//     }
+// })
+
+// updating one
+router.patch('/update/:id', fetchuser, getStudents, upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'documentid', maxCount: 1 }]), async (req, res) => {
+    try {
+        // Existing student data is expected to be attached to the response by the 'getStudents' middleware
+        const student = res.students;
+
+        // console.log(res.students);
+        // Update text fields if provided
+        if (req.body.name) student.name = req.body.name;
+        if (req.body.email) student.email = req.body.email;
+        if (req.body.gender) student.gender = req.body.gender;
+        if (req.body.address) student.address = req.body.address;
+        if (req.body.phone) student.phone = req.body.phone;
+        if (req.body.parentsphone) student.parentsphone = req.body.parentsphone;
+        if (req.body.role) student.role = req.body.role;
+        // Update any other fields as necessary
+
+        // Handle photo update and deletion
+        if (req.files['photo'] && req.files['photo'][0]) {
+            // If there's an existing photo, delete it
+            if (student.photo && fs.existsSync(student.photo)) {
+                fs.unlink(student.photo, (err) => {
+                    if (err) {
+                        console.error(`Failed to delete old photo: ${student.photo}`, err);
+                        // Consider how to handle this error. For simplicity, just logging it here.
+                    }
+                });
+            }
+            // Update with new photo path
+            student.photo = req.files['photo'][0].path;
+        }
+
+        // Handle document update and deletion
+        if (req.files['documentid'] && req.files['documentid'][0]) {
+            // If there's an existing document, delete it
+            if (student.documentid && fs.existsSync(student.documentid)) {
+                fs.unlink(student.documentid, (err) => {
+                    if (err) {
+                        console.error(`Failed to delete old document: ${student.documentid}`, err);
+                        // Consider how to handle this error. For simplicity, just logging it here.
+                    }
+                });
+            }
+            // Update with new document path
+            student.documentid = req.files['documentid'][0].path;
+        }
+
+        // Save the updated student data
+        const updatedStudent = await student.save();
+
+        res.json({ success: true, updatedStudent });
     } catch (err) {
-        res.status(400).json({message: err.message})
-        success=false
+        console.error(err);
+        res.status(400).json({ success: false, message: "Failed to update student", error: err.message });
     }
-})
+});
 
 
 
