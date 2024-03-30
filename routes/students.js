@@ -223,36 +223,39 @@ router.patch('/update/:id', fetchuser, getStudents, upload.fields([{ name: 'phot
         if (req.body.phone) student.phone = req.body.phone;
         if (req.body.parentsphone) student.parentsphone = req.body.parentsphone;
         if (req.body.role) student.role = req.body.role;
-        // Update any other fields as necessary
-
-        // Handle photo update and deletion
-        if (req.files['photo'] && req.files['photo'][0]) {
-            // If there's an existing photo, delete it
-            if (student.photo && fs.existsSync(student.photo)) {
-                fs.unlink(student.photo, (err) => {
-                    if (err) {
-                        console.error(`Failed to delete old photo: ${student.photo}`, err);
-                        // Consider how to handle this error. For simplicity, just logging it here.
-                    }
-                });
+        if (req.body.accountStatus) student.accountStatus = req.body.accountStatus;
+        
+        // Dynamically update provided fields except 'photo' and 'documentid' to handle them separately
+        Object.keys(req.body).forEach(key => {
+            if (!['photo', 'documentid'].includes(key)) { // Skip file fields here
+                student[key] = req.body[key];
             }
-            // Update with new photo path
-            student.photo = req.files['photo'][0].path;
-        }
+        });
 
-        // Handle document update and deletion
-        if (req.files['documentid'] && req.files['documentid'][0]) {
-            // If there's an existing document, delete it
-            if (student.documentid && fs.existsSync(student.documentid)) {
-                fs.unlink(student.documentid, (err) => {
-                    if (err) {
-                        console.error(`Failed to delete old document: ${student.documentid}`, err);
-                        // Consider how to handle this error. For simplicity, just logging it here.
+
+        // Handling file fields ('photo' and 'documentid')
+        if (req.files) {
+            if (req.files['photo'] && req.files['photo'][0]) {
+                // Delete existing photo if it exists
+                if (student.photo) {
+                    const oldPhotoPath = student.photo;
+                    if (fs.existsSync(oldPhotoPath)) {
+                        fs.unlinkSync(oldPhotoPath); // Use synchronous version for simplicity, consider async in production
                     }
-                });
+                }
+                student.photo = req.files['photo'][0].path; // Update photo path
             }
-            // Update with new document path
-            student.documentid = req.files['documentid'][0].path;
+            
+            if (req.files['documentid'] && req.files['documentid'][0]) {
+                // Delete existing document if it exists
+                if (student.documentid) {
+                    const oldDocumentPath = student.documentid;
+                    if (fs.existsSync(oldDocumentPath)) {
+                        fs.unlinkSync(oldDocumentPath); // Use synchronous version for simplicity, consider async in production
+                    }
+                }
+                student.documentid = req.files['documentid'][0].path; // Update document path
+            }
         }
 
         // Save the updated student data
