@@ -16,6 +16,11 @@ const fs = require('fs'); // fs module to delete files
 
 const siteUrl = process.env.SITE_URL
 
+
+//==================================================================
+//==================================================================
+
+
 // Getting all
 router.get('/showall/', fetchuser, async (req, res) => {
     
@@ -56,6 +61,9 @@ async function getStudentByUid(req, res, next) {
 }
 
 
+//==================================================================
+//==================================================================
+
 // Updated GET request to get logged-in student's data
 router.get('/student-data/', fetchuser, async (req, res) => {
     try {
@@ -77,6 +85,9 @@ router.get('/student-data/', fetchuser, async (req, res) => {
 });
 
 
+//==================================================================
+//==================================================================
+
 
 // Multer configurations
 // Configure Multer
@@ -85,7 +96,8 @@ const storage = multer.diskStorage({
       cb(null, 'uploads/') // Make sure this directory exists
     },
     filename: function (req, file, cb) {
-      cb(null, Date.now() + path.extname(file.originalname)) // Naming the file uniquely
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname)); // Naming the file uniquely
     }
   });
 
@@ -100,6 +112,10 @@ const storage = multer.diskStorage({
 
   const upload = multer({ storage: storage, fileFilter: fileFilter, limits: { fileSize: 1024 * 1024 * 5 } }); // Limit of 5MB
 
+
+
+//==================================================================
+//==================================================================
 
 // Route 2: Creating one with uploads: Signup
 router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'documentid', maxCount: 1 }]), async (req, res) => {
@@ -208,59 +224,58 @@ router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: '
 //     }
 // })
 
+//==================================================================
+//==================================================================
+
+
 // updating one
 router.patch('/update/:id', fetchuser, getStudents, upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'documentid', maxCount: 1 }]), async (req, res) => {
     try {
         // Existing student data is expected to be attached to the response by the 'getStudents' middleware
         const student = res.students;
+        //console.log(req.files, "hello reqfiles");
 
-        // console.log(res.students);
-        // Update text fields if provided
-        if (req.body.name) student.name = req.body.name;
-        if (req.body.email) student.email = req.body.email;
-        if (req.body.gender) student.gender = req.body.gender;
-        if (req.body.address) student.address = req.body.address;
-        if (req.body.phone) student.phone = req.body.phone;
-        if (req.body.parentsphone) student.parentsphone = req.body.parentsphone;
-        if (req.body.role) student.role = req.body.role;
-        if (req.body.accountStatus) student.accountStatus = req.body.accountStatus;
-        
-        // Dynamically update provided fields except 'photo' and 'documentid' to handle them separately
+        // Dynamically update provided fields, except 'photo' and 'documentid' to handle them separately
         Object.keys(req.body).forEach(key => {
-            if (!['photo', 'documentid'].includes(key)) { // Skip file fields here
+            if (!['photo', 'documentid', 'accountStatus', 'password'].includes(key)) {
                 student[key] = req.body[key];
             }
         });
 
+        // Specifically handle 'accountStatus' if provided
+        if ('accountStatus' in req.body) {
+            student.accountStatus = req.body.accountStatus === 'true' ? true : req.body.accountStatus === 'false' ? false : student.accountStatus;
+        }
 
-        // Handling file fields ('photo' and 'documentid')
-        if (req.files) {
-            if (req.files['photo'] && req.files['photo'][0]) {
-                // Delete existing photo if it exists
-                if (student.photo) {
-                    const oldPhotoPath = student.photo;
-                    if (fs.existsSync(oldPhotoPath)) {
-                        fs.unlinkSync(oldPhotoPath); // Use synchronous version for simplicity, consider async in production
-                    }
-                }
-                student.photo = req.files['photo'][0].path; // Update photo path
+        // Handle password update if provided
+        if (req.body.password) {
+            const saltRounds = 10; // Adjust as per your security requirement
+            const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
+            student.password = hashedPassword;
+        }
+
+        // Handle photo update and deletion
+        if (req.files['photo'] && req.files['photo'][0]) {
+            if (student.photo && fs.existsSync(student.photo)) {
+                fs.unlink(student.photo, (err) => {
+                    if (err) console.error(`Failed to delete old photo: ${student.photo}`, err);
+                });
             }
-            
-            if (req.files['documentid'] && req.files['documentid'][0]) {
-                // Delete existing document if it exists
-                if (student.documentid) {
-                    const oldDocumentPath = student.documentid;
-                    if (fs.existsSync(oldDocumentPath)) {
-                        fs.unlinkSync(oldDocumentPath); // Use synchronous version for simplicity, consider async in production
-                    }
-                }
-                student.documentid = req.files['documentid'][0].path; // Update document path
+            student.photo = req.files['photo'][0].path;
+        }
+
+        // Handle document update and deletion
+        if (req.files['documentid'] && req.files['documentid'][0]) {
+            if (student.documentid && fs.existsSync(student.documentid)) {
+                fs.unlink(student.documentid, (err) => {
+                    if (err) console.error(`Failed to delete old document: ${student.documentid}`, err);
+                });
             }
+            student.documentid = req.files['documentid'][0].path;
         }
 
         // Save the updated student data
         const updatedStudent = await student.save();
-
         res.json({ success: true, updatedStudent });
     } catch (err) {
         console.error(err);
@@ -268,6 +283,65 @@ router.patch('/update/:id', fetchuser, getStudents, upload.fields([{ name: 'phot
     }
 });
 
+//==================================================================
+//==================================================================
+
+
+// PATCH endpoint to toggle a student's account status
+router.patch('/toggleacStatus/:id', fetchuser, async (req, res) => {
+    const { id } = req.params; // Student ID from URL
+    const { accountStatus } = req.body; // New account status from request body
+  
+    try {
+      // Find the student by ID and update
+      const student = await Students.findById(id);
+  
+      if (!student) {
+        return res.status(404).json({ error: "Student not found" });
+      }
+  
+      // Update the account status
+      student.accountStatus = accountStatus;
+      await student.save();
+  
+      res.json({ success: true, message: "Account status updated successfully", updatedStudent: student });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Server error while updating account status" });
+    }
+  });
+
+
+//==================================================================
+//==================================================================
+
+// PATCH endpoint to toggle a student's account status
+router.patch('/toggleacStatus/:id', fetchuser, async (req, res) => {
+    const { id } = req.params; // Student ID from URL
+    const { accountStatus } = req.body; // New account status from request body
+  
+    try {
+      // Find the student by ID and update
+      const student = await Student.findById(id);
+  
+      if (!student) {
+        return res.status(404).json({ error: "Student not found" });
+      }
+  
+      // Update the account status
+      student.accountStatus = accountStatus;
+      await student.save();
+  
+      res.json({ success: true, message: "Account status updated successfully", updatedStudent: student });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Server error while updating account status" });
+    }
+  });
+
+
+//==================================================================
+//==================================================================
 
 
 // Deleting one
@@ -301,6 +375,9 @@ async function getStudents(req, res, next) {
 }
 
 
+
+//==================================================================
+//==================================================================
 
 
 // Route 2: Authenticate a user using /students/login
@@ -350,6 +427,9 @@ router.post('/login', [
 })
 
 
+//==================================================================
+//==================================================================
+
 
 // Route 3: Get logged in user details /students/getuser. Requires login
 router.post('/getuser', fetchuser, async (req, res) => {
@@ -363,6 +443,9 @@ router.post('/getuser', fetchuser, async (req, res) => {
     }
 })
 
+
+//==================================================================
+//==================================================================
 
 
 // Route 4: Creating multiple students /students/addmultiple. Requires Admin login
@@ -430,10 +513,20 @@ router.post('/addmultiple/', async (req, res) => {
     res.status(201).json(createdStudents);
 });
 
+
+//==================================================================
+//==================================================================
+
+
 // Generate reset token for forgot password
 const generateResetToken = () => {
     return crypto.randomBytes(20).toString('hex');
   };
+
+
+//==================================================================
+//==================================================================
+
 
   //send email
 
@@ -458,6 +551,11 @@ const generateResetToken = () => {
   
     console.log("Reset email sent successfully", data);
   };
+
+
+//==================================================================
+//==================================================================
+
 
 // Route 5: forgot password
 router.post('/forgot-password', async (req, res) => {
@@ -486,6 +584,10 @@ router.post('/forgot-password', async (req, res) => {
     }
   });
 
+
+
+//==================================================================
+//==================================================================
 
 // Route 6 /reset-password endpoint
 router.post('/reset-password', async (req, res) => {

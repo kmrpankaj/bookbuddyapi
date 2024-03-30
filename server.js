@@ -19,6 +19,11 @@ db.once('open', () => {
 app.use(cors());
 app.use(express.json());
 
+// Route for the homepage to redirect to the frontend homepage
+app.get('/', (req, res) => {
+    res.redirect(process.env.SITE_URL);
+});
+
 // Available Routes
 const studentsRouter = require('./routes/students');
 app.use('/students', studentsRouter);
