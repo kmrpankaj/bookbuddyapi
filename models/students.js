@@ -29,6 +29,11 @@ const studentsSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    profilephoto: {
+        type: String,
+        required: false,
+        default: "/uploads/default.jpg"
+    },
     photo: {
         type: String,
         required: false,

@@ -38,3 +38,5 @@ const emailRoutes = require('./routes/email');
 app.use('/email', emailRoutes);
 
 app.use('/uploads', express.static('uploads'));
+
+

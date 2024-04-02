@@ -34,10 +34,18 @@ router.get('/showall/', fetchuser, async (req, res) => {
         res.status(500).json({ message: err.message })
     }
 })
+
+//==================================================================
+//==================================================================
+
 // Getting one
 router.get('/show/:id', getStudents, (req, res) => {
     res.send(res.students)
 })
+
+
+//==================================================================
+//==================================================================
 
 // This route will match requests to /show/uid/{uid}
 router.get('/show/uid/:uid', getStudentByUid, (req, res) => {
@@ -86,6 +94,7 @@ router.get('/student-data/', fetchuser, async (req, res) => {
 
 
 //==================================================================
+//#################### Multer configurations #######################
 //==================================================================
 
 
@@ -115,6 +124,7 @@ const storage = multer.diskStorage({
 
 
 //==================================================================
+//############################ Signup ##############################
 //==================================================================
 
 // Route 2: Creating one with uploads: Signup
@@ -225,6 +235,7 @@ router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: '
 // })
 
 //==================================================================
+//############################ Update ##############################
 //==================================================================
 
 
@@ -280,8 +291,30 @@ router.patch('/update/:id', fetchuser, getStudents, upload.fields([{ name: 'phot
     } catch (err) {
         console.error(err);
         res.status(400).json({ success: false, message: "Failed to update student", error: err.message });
+        next(err);
     }
-});
+    }, (error, req, res, next) => { // Dedicated error handling for the update route
+        if (error instanceof multer.MulterError) {
+            // Handle Multer-specific errors
+            let message = 'An error occurred during the file upload.';
+            if (error.code === 'LIMIT_FILE_SIZE') {
+                message = 'File too large. Please upload a file smaller than 5MB.';
+            } else if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+                message = 'Too many files uploaded.';
+            } else {
+                message = error.message;
+            }
+            return res.status(400).json({ success: false, message: message });
+        } else if (req.fileValidationError) {
+            // Handle file validation errors
+            return res.status(400).json({ success: false, message: req.fileValidationError });
+        } else if (error) {
+            // Handle any other errors
+            return res.status(500).json({ success: false, message: error.message });
+        }
+        // If there's no error, pass control to the next middleware (if any)
+        next();
+    });
 
 //==================================================================
 //==================================================================
