@@ -168,15 +168,17 @@ router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: '
             id: students.id
         }
     }
-    const authToken = jwt.sign(data, JWT_SECRET)
-    try{
+    
         const [user, phone] = await Promise.all([Students.findOne({ email: req.body.email }), Students.findOne({ phone: req.body.phone })]);
         if(user || phone) {
             return user ? res.status(400).json({ error: "Sorry, a user with this email already exists." }) : phone ? res.status(400).json({ error: "Sorry, a user with this phone number already exists." }) : "";
         }
+
+        try {
         const newStudents = await students.save()
+        const authToken = jwt.sign(data, JWT_SECRET)
         success=true;
-        res.status(201).json({success, newStudents})
+        res.status(201).json({success, authToken, newStudents})
     } catch (err){
         success=false;
         next(err);
