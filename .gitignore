@@ -1,4 +1,6 @@
 .env
 node_modules
 route.rest
-/uploads
+uploads/*
+!uploads/.gitkeep
+
