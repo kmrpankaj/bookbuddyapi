@@ -32,7 +32,20 @@ const bookingsSchema = new mongoose.Schema({
         ref: 'DiscountCoupon', // Reference to the DiscountCoupon model
         required: false,
     },
-    
+    // New fields for order creation data
+    key: String, // Unique key for the transaction
+    clientTxnId: String, // Client Transaction ID
+    amount: Number, // Transaction amount, converted to Number for calculations
+    pInfo: String, // Product info
+    customerName: String,
+    customerEmail: String,
+    customerMobile: String,
+    redirectUrl: String, // URL to redirect to after transaction completion
+    // User-defined fields
+    udf1: String,
+    udf2: String,
+    udf3: String,
+
 }, {timestamps: true}); // Ensured proper naming for automatic timestamp configuration
 
 module.exports = mongoose.model('bookings', bookingsSchema);
