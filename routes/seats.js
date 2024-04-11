@@ -165,14 +165,14 @@ router.patch('/updateseats/:id', fetchuser, async (req, res) => {
 
         // Update the seat in the database
         const seat = await Seat.findByIdAndUpdate(req.params.id, { $set: newSeat }, { new: true });
-        console.log(newSeat);
+        //console.log(newSeat);
 
 
         // Find the slot with bookedBy not null
         const [bookedSlotName, slotData] = Object.entries(seatStatus)[0]; // Destructure the first entry
         const userId = slotData.bookedBy;
-        console.log(userId)
-        console.log(bookedSlotName)
+        //console.log(userId)
+        //console.log(bookedSlotName)
 
 
 
