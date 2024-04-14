@@ -34,9 +34,14 @@ app.use('/seats', seatsRouter);
 const bookingRouter = require('./routes/bookings');
 app.use('/bookings', bookingRouter);
 
+const couponRouter = require('./routes/coupons');
+app.use('/coupons', couponRouter);
+
 const emailRoutes = require('./routes/email');
 app.use('/email', emailRoutes);
 
 app.use('/uploads', express.static('uploads'));
+
+
 
 

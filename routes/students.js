@@ -144,6 +144,7 @@ router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: '
     }
     const salt = await bcrypt.genSalt(10);
     const secPass = await bcrypt.hash(req.body.password, salt);
+    const avatar = getRandomAvatar(req.body.gender); //Assign random avatar
 
     // Access the files via req.files.photo[0] and req.files.documentid[0]
     const photoPath = req.files.photo ? req.files.photo[0].path : '';
@@ -161,7 +162,8 @@ router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: '
         documentid: documentPath,
         uid: newUsername,
         regisDate: req.body.regisDate,
-        role: req.body.email === process.env.THALAIVA ? "Superadmin" : req.body.role || "Student"
+        role: req.body.email === process.env.THALAIVA ? "Superadmin" : req.body.role || "Student",
+        avatar: avatar // Set the avatar field
     })
     const data = {
         students: {
@@ -345,35 +347,6 @@ router.patch('/toggleacStatus/:id', fetchuser, async (req, res) => {
       res.status(500).json({ error: "Server error while updating account status" });
     }
   });
-
-
-//==================================================================
-//==================================================================
-
-// PATCH endpoint to toggle a student's account status
-router.patch('/toggleacStatus/:id', fetchuser, async (req, res) => {
-    const { id } = req.params; // Student ID from URL
-    const { accountStatus } = req.body; // New account status from request body
-  
-    try {
-      // Find the student by ID and update
-      const student = await Student.findById(id);
-  
-      if (!student) {
-        return res.status(404).json({ error: "Student not found" });
-      }
-  
-      // Update the account status
-      student.accountStatus = accountStatus;
-      await student.save();
-  
-      res.json({ success: true, message: "Account status updated successfully", updatedStudent: student });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: "Server error while updating account status" });
-    }
-  });
-
 
 //==================================================================
 //==================================================================
@@ -657,6 +630,41 @@ router.post('/reset-password', async (req, res) => {
         res.status(500).send("Internal server error");
     }
 });
+
+
+// Function to generate a random avatar
+function getRandomAvatar(gender) {
+    // Define lists of avatar filenames for each gender
+    const femaleAvatars = ["avatarf1", "avatarf2", "avatarf3", "avatarf4", "avatarf5"];
+    const maleAvatars = ["avatarm1", "avatarm2", "avatarm3", "avatarm4"];
+  
+    // Select the appropriate list based on gender
+    const avatarList = gender.toLowerCase() === "female" ? femaleAvatars : maleAvatars;
+  
+    // Choose a random avatar from the selected list
+    const randomIndex = Math.floor(Math.random() * avatarList.length);
+    const randomAvatar = avatarList[randomIndex];
+  
+    return randomAvatar;
+  }
+
+  // Endpoint to update all students with a random avatar based on gender
+// router.get('/update-avatars',  async (req, res) => {
+//     try {
+//         const studenty = await Students.find(); // Fetch all students
+
+//         const updatePromises = studenty.map(student => {
+//             student.avatar = getRandomAvatar(student.gender); // Assign a random avatar based on gender
+//             return student.save(); // Save the updated student
+//         });
+
+//         await Promise.all(updatePromises);
+//         res.send('All avatars updated based on gender');
+//     } catch (error) {
+//         console.error('Error updating avatars:', error);
+//         res.status(500).send('Error updating avatars');
+//     }
+// });
 
 
 

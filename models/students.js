@@ -44,6 +44,11 @@ const studentsSchema = new mongoose.Schema({
         required: false,
         default: "/uploads/default.jpg"
     },
+    avatar: {
+        type: String,
+        required: false,
+        default: "/uploads/default.jpg"
+    },
     uid: {
         type: String,
         required: true

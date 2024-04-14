@@ -45,6 +45,18 @@ const bookingsSchema = new mongoose.Schema({
     udf1: String,
     udf2: String,
     udf3: String,
+    paymentUrl: String, // URL to make the payment, received from the API
+    upiIdHash: String, // UPI ID hash, for validation
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'success', 'failed'],
+      default: 'pending'
+    },
+    upiTxnId: String, // UPI Transaction ID, received from the API
+    statusRemark: String, // Remark on the transaction status, received from the API
+    txnAt: Date, // Transaction Date
+    merchantName: String, // Merchant's Name
+    merchantUpiId: String, // Merchant's UPI ID
 
 }, {timestamps: true}); // Ensured proper naming for automatic timestamp configuration
 

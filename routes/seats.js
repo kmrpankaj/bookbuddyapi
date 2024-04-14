@@ -19,33 +19,6 @@ router.get('/fetchallseats', fetchuser, async (req, res)=> {
 }
 })
 
-// Route 2: Add a new seat using: POST /seats/addseats. Requires login
-// router.post('/addaseat', fetchuser, [
-//     body('seatNumber', 'Enter a seat number').isLength({min: 3}),
-//     body('seatLocation', 'Enter a valid location').isLength({min: 3}),
-//     body('seatStatus', 'Enter a boolean value').isBoolean(),
-//     body('slot', 'Enter a valid location').isLength({min: 3})
-// ], async (req, res)=> {
-//     try {
-//     const {seatNumber, seatLocation, seatStatus, slot} = req.body;
-//     const errors = validationResult(req);
-//     if(!errors.isEmpty()) {
-//         return res.status(400).json({errors: errors.array()});
-//     }
-//     if (req.students.role !== "Admin") {
-//         return res.status(403).send({ error: "Unauthorized access" });
-//       }
-//     const seat = new seats({
-//         seatNumber, seatLocation, seatStatus, slot, students: req.students.id
-//     })
-//     const savedSeat = await seat.save();
-//     res.json(savedSeat)
-// } catch (error) {
-//         console.error(error.message);
-//         res.status(500).send("Internal Server Error");
-// }
-// })
-
 
 // Route 2: Add a new seat using: POST /seats/addseats. Requires login
 router.post('/addaseat', fetchuser, [
