@@ -7,7 +7,6 @@ const discountCouponSchema = new mongoose.Schema({
         unique: true, // Ensure uniqueness for each coupon code
     },
     description: String, // Optional: For internal notes or public descriptions
-    description: String, // Optional: For internal notes or public descriptions
     discountType: {
         type: String,
         required: true,
@@ -17,8 +16,14 @@ const discountCouponSchema = new mongoose.Schema({
         type: Number,
         required: true // Value of the discount, interpretation depends on discountType
     },
-    expirationDate: Date, // Optional: If the coupon has an expiration date
-    usageLimit: Number, // Optional: Maximum number of times the coupon can be used
+    expirationDate: {
+        type: Date,
+        default: () => new Date(new Date().setFullYear(new Date().getFullYear() + 2)),
+    },
+    usageLimit: {
+        type: Number,
+        default: null // Null can represent unlimited usage
+    },
     createdBy: mongoose.Schema.Types.ObjectId,
     timesUsed: {
         type: Number,

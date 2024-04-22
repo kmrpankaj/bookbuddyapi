@@ -18,6 +18,8 @@ db.once('open', () => {
 
 app.use(cors());
 app.use(express.json());
+// Middleware to parse URL-encoded bodies
+app.use(express.urlencoded({ extended: true }));
 
 // Route for the homepage to redirect to the frontend homepage
 app.get('/', (req, res) => {

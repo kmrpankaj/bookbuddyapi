@@ -368,6 +368,7 @@ router.delete('/delete/:id', fetchuser, getStudents, async (req, res) => {
     }
 })
 
+// Get student function
 async function getStudents(req, res, next) {
     let students
     try {

@@ -13,7 +13,6 @@ const bookingsSchema = new mongoose.Schema({
     studentId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'students',
-        required: true
     },
     seatDetails: [seatDetailSchema], // Array of seat details
     bookingDate: {
@@ -21,8 +20,7 @@ const bookingsSchema = new mongoose.Schema({
         required: true,
         default: Date.now
     },
-    endDate: Date, // Made type consistent with Date
-    transactionNum: {
+    clientTxnId: {
         type: String,
         required: true,
     },
@@ -33,10 +31,13 @@ const bookingsSchema = new mongoose.Schema({
         required: false,
     },
     // New fields for order creation data
-    key: String, // Unique key for the transaction
-    clientTxnId: String, // Client Transaction ID
+    orderStatus: Boolean,
+    msg: String,
+    orderId: Number,
+    paymentUrl: String,
     amount: Number, // Transaction amount, converted to Number for calculations
     pInfo: String, // Product info
+    upiIdHash: String, // UPI ID hash, for validation
     customerName: String,
     customerEmail: String,
     customerMobile: String,
@@ -45,8 +46,6 @@ const bookingsSchema = new mongoose.Schema({
     udf1: String,
     udf2: String,
     udf3: String,
-    paymentUrl: String, // URL to make the payment, received from the API
-    upiIdHash: String, // UPI ID hash, for validation
     paymentStatus: {
       type: String,
       enum: ['pending', 'success', 'failed'],
@@ -55,9 +54,10 @@ const bookingsSchema = new mongoose.Schema({
     upiTxnId: String, // UPI Transaction ID, received from the API
     statusRemark: String, // Remark on the transaction status, received from the API
     txnAt: Date, // Transaction Date
+    createdAt: Date,
     merchantName: String, // Merchant's Name
     merchantUpiId: String, // Merchant's UPI ID
 
 }, {timestamps: true}); // Ensured proper naming for automatic timestamp configuration
 
-module.exports = mongoose.model('bookings', bookingsSchema);
+module.exports = mongoose.model('Bookings', bookingsSchema);
