@@ -12,6 +12,12 @@ const discountCouponSchema = new mongoose.Schema({
         required: true,
         enum: ['amount', 'percentage'] // Ensures the discount type is either 'amount' or 'percentage'
     },
+    productRestriction: {
+        type: String,
+        required: true,
+        enum: ['1 product', '2 products', '3 products', '4 products', 'morning', 'afternoon', 'evening', 'night', 'none'],
+        default: 'none'
+    },
     discountValue: {
         type: Number,
         required: true // Value of the discount, interpretation depends on discountType

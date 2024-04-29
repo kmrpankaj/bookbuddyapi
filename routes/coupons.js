@@ -25,7 +25,7 @@ async (req, res) => {
         
         // create new coupon document
         const newCoupon = new DiscountCoupon({
-            code,
+            code: code.toUpperCase(),
             description,
             discountType,
             discountValue,
@@ -107,5 +107,56 @@ router.delete('/delete/:id', fetchuser, async (req, res) => {
         res.status(500).json({success, message: error.message})
     }
 })
+
+
+// Route: 4 Check coupons
+
+router.post('/check-coupon', async (req, res) => {
+    const { code, productCount, productTypes } = req.body;  // productCount should be the total number of items in the cart
+console.log(req.body)
+    try {
+        const coupon = await DiscountCoupon.findOne({ code: code.toUpperCase(), isActive: true });
+        if (!coupon) {
+            return res.status(404).json({ success: false, message: 'Coupon code not found or not active.' });
+        }
+
+        // Check if the coupon has expired
+        if (coupon.expirationDate && new Date(coupon.expirationDate) < new Date()) {
+            return res.status(400).json({ success: false, message: 'Coupon has expired.' });
+        }
+
+        // Check usage limit
+        if (coupon.usageLimit && coupon.timesUsed >= coupon.usageLimit) {
+            return res.status(400).json({ success: false, message: 'Coupon usage limit has been reached.' });
+        }
+
+        // Product restrictions
+        if (coupon.productRestriction !== 'none') {
+            if (['morning', 'afternoon', 'evening', 'night'].includes(coupon.productRestriction)) {
+                if (!productTypes.includes(coupon.productRestriction)) {
+                    return res.status(400).json({ success: false, message: 'This coupon does not apply to the products in your cart.' });
+                }
+            } else {
+                // Handle numeric product restrictions like '1 product'
+                const restrictionCount = parseInt(coupon.productRestriction.split(' ')[0]);
+                if (productCount < restrictionCount) {
+                    return res.status(400).json({ success: false, message: `This coupon requires at least ${restrictionCount} products in the cart.` });
+                }
+            }
+        }
+
+        // All checks passed, return the discount details
+        res.json({
+            success: true,
+            message: 'Coupon is valid.',
+            discountType: coupon.discountType,
+            discountValue: coupon.discountValue
+        });
+
+    } catch (error) {
+        console.error('Error checking coupon:', error);
+        res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    }
+});
 
 module.exports = router
