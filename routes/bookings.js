@@ -133,6 +133,7 @@ router.post('/api/webhook', async (req, res) => {
         await Promise.all(updates);
         // Call the function to send the POST request
         const receiptSent = await sendReceiptViaPost(booking.clientTxnId);
+        console.log(receiptSent)
         if (!receiptSent) {
             console.error('Failed to send email receipt');
             // Handle receipt sending failure (optional: retry or log for investigation)
@@ -200,7 +201,7 @@ router.post('/create/order', async (req, res) => {
         udf3
     };
 
-
+console.log(orderData, "order data")
     try {
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -681,13 +682,13 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
 // function to get send the receipt to email using send-receipt
 async function sendReceiptViaPost(clientTxnId) {
     try {
-        const url = `http://${host}/bookings/send-receipt/${clientTxnId}`;
+        const url = `${host}/bookings/send-receipt/${clientTxnId}`;
         const options = {
             method: 'POST',
         };
-
+        console.log(`URL being called: ${url}`); 
         const response = await fetch(url, options);
-
+console.log(response, "email response")
         if (!response.ok) {
             throw new Error(`Failed to send email receipt (status: ${response.status})`);
         }
