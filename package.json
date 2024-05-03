@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@ironsoftware/ironpdf": "^2024.4.2",
     "@react-email/components": "^0.0.15",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

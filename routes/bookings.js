@@ -1,4 +1,5 @@
 const express = require('express');
+const { Resend } = require('resend');
 const fetchuser = require('../middleware/fetchuser');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
@@ -6,41 +7,44 @@ const Bookings = require('../models/bookings');
 const { Seat } = require('../models/seats');
 const Students = require('../models/students')
 const puppeteer = require('puppeteer');
+const PdfDocument = require('@ironsoftware/ironpdf').PdfDocument;
+const resend = new Resend('re_KUJpjvYH_9M4jU7u1N25CKkAG4H8qRzmK');
+const host = process.env.BACKEND_URL
 
 
 // Route 1: Get all the booking using: GET /bookings/getbookings. Requires login
-router.get('/getbooking', async (req, res)=> {
+router.get('/getbooking', async (req, res) => {
     try {
-    const booking = await Bookings.find();
-    res.json(booking)
-} catch (error) {
-    console.error(error.message);
-    res.status(500).send("Internal Server Error");
-}
+        const booking = await Bookings.find();
+        res.json(booking)
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send("Internal Server Error");
+    }
 })
 
 // Route 2: Book a slot: GET /bookings/bookaseat. Requires login
 router.post('/bookaseat', fetchuser, [
-    body('slot', 'Enter a valid slot').isLength({min: 3}),
+    body('slot', 'Enter a valid slot').isLength({ min: 3 }),
     body('seatId', 'Enter a valid seat Id'),
     body('endDate', 'Enter a valid end date')
 
-], async (req, res)=> {
+], async (req, res) => {
     try {
-    const {slot, seatId, endDate} = req.body;
-    const errors = validationResult(req);
-    if(!errors.isEmpty()) {
-        return res.status(400).json({errors: errors.array()});
-    }
-    const booking = new Bookings({
-        slot, seatId, endDate, bookedBy: req.students.uid
-    })
-    const savedBooking = await booking.save();
-    res.json(savedBooking)
-} catch (error) {
+        const { slot, seatId, endDate } = req.body;
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+        const booking = new Bookings({
+            slot, seatId, endDate, bookedBy: req.students.uid
+        })
+        const savedBooking = await booking.save();
+        res.json(savedBooking)
+    } catch (error) {
         console.error(error.message);
         res.status(500).send("Internal Server Error");
-}
+    }
 })
 
 // Router 3: Webhook: Transaction status response after payment is done
@@ -127,6 +131,12 @@ router.post('/api/webhook', async (req, res) => {
             });
 
         await Promise.all(updates);
+        // Call the function to send the POST request
+        const receiptSent = await sendReceiptViaPost(booking.clientTxnId);
+        if (!receiptSent) {
+            console.error('Failed to send email receipt');
+            // Handle receipt sending failure (optional: retry or log for investigation)
+        }
 
         res.status(200).json({ success: true, message: "Seats and student data updated successfully" });
     } catch (error) {
@@ -245,9 +255,9 @@ router.post('/create/order', async (req, res) => {
             paymentStatus: 'pending' // Initially set to pending
         });
 
-            await newOrder.save();
-            res.status(200).json({ success: true, message: 'Order created and saved successfully', order: newOrder });
-        
+        await newOrder.save();
+        res.status(200).json({ success: true, message: 'Order created and saved successfully', order: newOrder });
+
     } catch (error) {
         console.error('Error processing order:', error);
         res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
@@ -275,7 +285,7 @@ router.get('/generate-txn-id', async (req, res) => {
 router.get('/generate-receipt/:clientTxnId', async (req, res) => {
     try {
         const clientTxnId = req.params.clientTxnId;
-        const booking = await Bookings.findOne({clientTxnId: clientTxnId}).exec();
+        const booking = await Bookings.findOne({ clientTxnId: clientTxnId }).exec();
 
         if (!booking) {
             return res.status(404).send('Booking not found');
@@ -296,11 +306,11 @@ router.get('/generate-receipt/:clientTxnId', async (req, res) => {
         const formatDate = (dateString) => {
             const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
             const date = new Date(dateString);
-            
+
             const day = date.getDate();
             const month = months[date.getMonth()];
             const year = date.getFullYear();
-            
+
             return `${day} ${month}, ${year}`;
         };
 
@@ -314,7 +324,7 @@ router.get('/generate-receipt/:clientTxnId', async (req, res) => {
                     <span class="font-weight-bold"><span class='text-muted'>Table Number: </span>${seat.seatNumber || "New Booking"}</span>
                     <div class="product-qty">
                         <span class="d-block"><span class='text-muted'>Slot: </span>${convertSlotToTimings(seat.slot)}</span>
-                        <span><span class='text-muted'>Valid through: </span>${(seat.seatValidTill)?formatDate(seat.seatValidTill):"Next term"}</span>
+                        <span><span class='text-muted'>Valid through: </span>${(seat.seatValidTill) ? formatDate(seat.seatValidTill) : "Next term"}</span>
                     </div>
                 </td>
                 <td width="20%">
@@ -369,7 +379,7 @@ router.get('/generate-receipt/:clientTxnId', async (req, res) => {
                                                 <div class="py-2"><span class="d-block text-muted">Payment</span><span>Online</span></div>
                                             </td>
                                             <td>
-                                                <div class="py-2"><span class="d-block text-muted">Transaction ID</span><span class="${(!booking.upiTxnId)?"text-danger":""}">${(!booking.upiTxnId)?booking.paymentStatus:booking.upiTxnId}</span></div>
+                                                <div class="py-2"><span class="d-block text-muted">Transaction ID</span><span class="${(!booking.upiTxnId) ? "text-danger" : ""}">${(!booking.upiTxnId) ? booking.paymentStatus : booking.upiTxnId}</span></div>
                                             </td>
                                         </tr>
                                     </tbody>
@@ -416,7 +426,7 @@ router.get('/generate-receipt/:clientTxnId', async (req, res) => {
                                                 <div class="text-left"><span class="font-weight-bold">Status</span></div>
                                             </td>
                                             <td>
-                                                <div class="text-right"><span class="${(booking.paymentStatus==="success")?"text-success":"text-danger"} font-weight-bold">${booking.paymentStatus}</span></div>
+                                                <div class="text-right"><span class="${(booking.paymentStatus === "success") ? "text-success" : "text-danger"} font-weight-bold">${booking.paymentStatus}</span></div>
                                             </td>
                                         </tr>
                                     </tbody>
@@ -450,4 +460,249 @@ router.get('/generate-receipt/:clientTxnId', async (req, res) => {
     }
 });
 
+
+// Route to send a booking receipt as email
+router.post('/send-receipt/:clientTxnId', async (req, res) => {
+    try {
+        const clientTxnId = req.params.clientTxnId;
+        const booking = await Bookings.findOne({ clientTxnId: clientTxnId }).exec();
+
+        if (!booking) {
+            return res.status(404).send('Booking not found');
+        }
+
+        // Function to convert slot to timings
+        const convertSlotToTimings = (slot) => {
+            const slotMap = {
+                morning: "06 am to 10 am",
+                afternoon: "02 pm to 06 pm",
+                evening: "06 pm to 10 pm",
+                night: "10 pm to 02 am",
+            };
+            return slotMap[slot] || "Time not available";
+        };
+
+        // Function to format dates
+        const formatDate = (dateString) => {
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const date = new Date(dateString);
+
+            const day = date.getDate();
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+
+            return `${day} ${month}, ${year}`;
+        };
+
+        // Generate rows for each seat
+        const seatRows = booking.seatDetails.map(seat => `
+
+    <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;color:rgb(51, 51, 51);background-color:rgb(250, 250, 250);border-radius:3px;margin-bottom:1px">
+                      <tbody style="width:100%">
+                        <tr style="width:100%">
+                          <td data-id="__react-email-column">
+                            <p style="font-size:14px;line-height:24px;margin:16px 0;padding-left:15px">Table Number: ${seat.seatNumber || "New Booking"} <br />Slot: ${convertSlotToTimings(seat.slot)} <br />Valid through: ${(seat.seatValidTill) ? formatDate(seat.seatValidTill) : "Next term"}</p>
+                          </td>
+                          <td data-id="__react-email-column" style="float:right">
+                            <p style="font-size:14px;line-height:24px;margin:16px 0;padding-right:15px">₹350</p>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+`).join('');
+
+        // Assuming you have a function to generate HTML receipt
+        const html = `
+        <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd" >
+        <html dir="ltr" lang="en">
+
+            <head>
+                <meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+            </head>
+            <div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0">Your payment receipt for the payment made on Bookbuddy Library members page.<div> </div>
+            </div>
+
+            <body style="background-color:#f6f9fc;font-family:-apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Roboto,&quot;Helvetica Neue&quot;,Ubuntu,sans-serif">
+                <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:50.5em;background-color:#ffffff;margin:0 auto;padding:20px 0 48px;margin-bottom:64px">
+                    <tbody>
+                        <tr style="width:100%">
+                            <td>
+                                <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="padding:0 48px">
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation">
+                                                    <tbody style="width:100%">
+                                                        <tr style="width:100%">
+                                                            <td data-id="__react-email-column"><img alt="Stripe" height="" src="https://bookbuddy.co.in/wp-content/uploads/2023/02/Background.png" style="display:block;outline:none;border:none;text-decoration:none" width="170" /></td>
+                                                            <td data-id="__react-email-column">
+                                                                <h1 style="color:#333;font-family:-apple-system, BlinkMacSystemFont, &#x27;Segoe UI&#x27;, &#x27;Roboto&#x27;, &#x27;Oxygen&#x27;, &#x27;Ubuntu&#x27;, &#x27;Cantarell&#x27;, &#x27;Fira Sans&#x27;, &#x27;Droid Sans&#x27;, &#x27;Helvetica Neue&#x27;, sans-serif;font-size:24px;font-weight:bold;margin:10px 0;padding:0">BookBuddy</h1>
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">Library &amp; Co - Study Zone</p>
+                                                                <p style="font-size:12px;line-height:16px;margin:16px 0;margin-bottom:0;color:#8898aa">info@bookbuddy.co.in</p>
+                                                                <p style="font-size:12px;line-height:16px;margin:16px 0;margin-top:0;color:#8898aa">www.bookbuddy.co.in</p>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                                <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation">
+                                                    <tbody style="width:100%">
+                                                        <tr style="width:100%">
+                                                            <h1 style="text-align:center;color:#333;font-family:-apple-system, BlinkMacSystemFont, &#x27;Segoe UI&#x27;, &#x27;Roboto&#x27;, &#x27;Oxygen&#x27;, &#x27;Ubuntu&#x27;, &#x27;Cantarell&#x27;, &#x27;Fira Sans&#x27;, &#x27;Droid Sans&#x27;, &#x27;Helvetica Neue&#x27;, sans-serif;font-size:20px;font-weight:bold;margin:10px 0;padding:0">Payment Receipt</h1>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                                <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
+                                                <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation">
+                                                    <tbody style="width:100%">
+                                                        <tr style="width:100%">
+                                                            <td data-id="__react-email-column">
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Billed to:</p>
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${booking.customerName}</p>
+                                                            </td>
+                                                            <td data-id="__react-email-column">
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Email:</p>
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${booking.customerEmail}</p>
+                                                            </td>
+                                                            <td colSpan="2" data-id="__react-email-column" style="float:right">
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Mobile:</p>
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${booking.customerMobile}</p>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                                <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
+                                                <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation">
+                                                    <tbody style="width:100%">
+                                                        <tr style="width:100%">
+                                                            <td data-id="__react-email-column">
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Receipt Number:</p>
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${booking.clientTxnId}</p>
+                                                            </td>
+                                                            <td data-id="__react-email-column">
+                                                                    <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Txn Date:</p>
+                                                                    <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${formatDate(booking.txnAt)}</p>
+                                                            </td>
+                                                            <td data-id="__react-email-column" style="float:right">
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Transaction Id:</p>
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${(!booking.upiTxnId) ? booking.paymentStatus : booking.upiTxnId}</p>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                                <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
+                                                ${seatRows}
+                                                
+                                                <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
+                                                <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation">
+                                                    <tbody style="width:100%">
+                                                        <tr style="width:100%">
+                                                            <td data-id="__react-email-column">
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:7px;margin-top:7px;color:#525f7f">Subtotal</p>
+                                                            </td>
+                                                            <td data-id="__react-email-column" style="float:right">
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:7px;margin-top:7px;color:#525f7f">₹${booking.totalPrice}</p>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                                <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation">
+                                                    <tbody style="width:100%">
+                                                        <tr style="width:100%">
+                                                            <td data-id="__react-email-column">
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:7px;margin-top:7px;color:#525f7f">Discount</p>
+                                                            </td>
+                                                            <td data-id="__react-email-column" style="float:right">
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:7px;margin-top:7px;color:#525f7f">-₹${booking.discountValue}</p>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                                <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation">
+                                                    <tbody style="width:100%">
+                                                        <tr style="width:100%">
+                                                            <td data-id="__react-email-column">
+                                                                <p style="font-size:17px;line-height:17px;margin:16px 0;margin-bottom:7px;margin-top:7px;color:#525f7f;font-weight:700">Total</p>
+                                                            </td>
+                                                            <td data-id="__react-email-column" style="float:right">
+                                                                <p style="font-size:17px;line-height:17px;margin:16px 0;margin-bottom:7px;margin-top:7px;color:#525f7f;font-weight:700">₹${booking.amount}</p>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                                <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
+                                                <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation">
+                                                    <tbody style="width:100%">
+                                                        <tr style="width:100%">
+                                                            <td data-id="__react-email-column">
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f">Mode</p>
+                                                                <p style="font-size:14px;line-height:14px;margin:16px 0;margin-top:0;color:#525f7f">Online</p>
+                                                            </td>
+                                                            <td data-id="__react-email-column" style="float:right">
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f">Status</p>
+                                                                <p style="font-size:14px;line-height:14px;margin:16px 0;margin-top:0;color:#525f7f">${booking.paymentStatus}</p>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                                <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
+                                                <p style="font-size:12px;line-height:16px;margin:16px 0;color:#8898aa">Terms &amp; Conditions applies*</p>
+                                                <p style="font-size:12px;line-height:16px;margin:16px 0;color:#8898aa">2nd &amp; 3rd Floor, Skyline Tower, Adarsh Nagar, Samastipur</p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </body>
+
+        </html>
+    `;
+
+        const { data, error } = await resend.emails.send({
+            from: '"BookBuddy" <info@bookbuddy.co.in>',
+            to: booking.customerEmail,
+            subject: 'Your recent payment receipt',
+            html: html,
+        });
+
+        if (error) {
+            return res.status(400).json({ error });
+        }
+
+        res.status(200).json({ message: 'Email receipt sent successfully', data });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('An error occurred while sending the email receipt');
+    }
+});
+
+// function to get send the receipt to email using send-receipt
+async function sendReceiptViaPost(clientTxnId) {
+    try {
+        const url = `http://${host}/bookings/send-receipt/${clientTxnId}`;
+        const options = {
+            method: 'POST',
+        };
+
+        const response = await fetch(url, options);
+
+        if (!response.ok) {
+            throw new Error(`Failed to send email receipt (status: ${response.status})`);
+        }
+
+        console.log('Email receipt sent successfully');
+        return true;
+    } catch (error) {
+        console.error('Error sending email receipt:', error);
+        return false;
+    }
+}
+
+
 module.exports = router
+
+
+
+
