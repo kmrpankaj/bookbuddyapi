@@ -58,6 +58,12 @@ const bookingsSchema = new mongoose.Schema({
     // User-defined fields
     udf1: String,
     udf2: String,
+    upi_intent: {
+        bhim_link: String,
+        phonepe_link: String,
+        paytm_link: String,
+        gpay_link: String
+      },
     paymentStatus: {
       type: String,
       enum: ['pending', 'success', 'failed'],

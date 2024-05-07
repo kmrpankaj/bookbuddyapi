@@ -49,7 +49,7 @@ router.post('/bookaseat', fetchuser, [
 
 // Router 3: Webhook: Transaction status response after payment is done
 router.post('/api/webhook', async (req, res) => {
-    console.log('Received webhook with body:', req.body);  // Log the incoming webhook data
+    //console.log('Received webhook with body:', req.body);  // Log the incoming webhook data
 
     try {
         const {
@@ -133,7 +133,7 @@ router.post('/api/webhook', async (req, res) => {
         await Promise.all(updates);
         // Call the function to send the POST request
         const receiptSent = await sendReceiptViaPost(booking.clientTxnId);
-        console.log(receiptSent)
+       
         if (!receiptSent) {
             console.error('Failed to send email receipt');
             // Handle receipt sending failure (optional: retry or log for investigation)
@@ -183,7 +183,8 @@ router.post('/create/order', async (req, res) => {
         redirect_url,
         udf1,
         udf2,
-        udf3
+        udf3,
+        upi_intent
     } = req.body;
 
     const apiUrl = 'https://api.ekqr.in/api/create_order';
@@ -201,7 +202,7 @@ router.post('/create/order', async (req, res) => {
         udf3
     };
 
-console.log(orderData, "order data")
+
     try {
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -253,7 +254,8 @@ console.log(orderData, "order data")
             msg: responseData.msg,
             paymentUrl: responseData.data.payment_url,
             upiIdHash: responseData.data.upi_id_hash,
-            paymentStatus: 'pending' // Initially set to pending
+            paymentStatus: 'pending', // Initially set to pending
+            upi_intent: responseData.data.upi_intent
         });
 
         await newOrder.save();
@@ -686,14 +688,14 @@ async function sendReceiptViaPost(clientTxnId) {
         const options = {
             method: 'POST',
         };
-        console.log(`URL being called: ${url}`); 
+       // console.log(`URL being called: ${url}`); 
         const response = await fetch(url, options);
-console.log(response, "email response")
+
         if (!response.ok) {
             throw new Error(`Failed to send email receipt (status: ${response.status})`);
         }
 
-        console.log('Email receipt sent successfully');
+        //console.log('Email receipt sent successfully');
         return true;
     } catch (error) {
         console.error('Error sending email receipt:', error);
