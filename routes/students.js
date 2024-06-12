@@ -10,11 +10,19 @@ const generateUsername = require('./uidgenerate')
 const crypto = require('crypto');
 const { Resend } = require('resend');
 const resend = new Resend('re_KUJpjvYH_9M4jU7u1N25CKkAG4H8qRzmK');
-const multer = require('multer')
-const path = require('path')
+const path = require('path');
 const fs = require('fs'); // fs module to delete files
+const multer = require('multer');
+const multerS3 = require('multer-s3');
+const AWS = require('aws-sdk');
 
 const siteUrl = process.env.SITE_URL
+
+const s3 = new AWS.S3({
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    region: process.env.AWS_REGION,
+  });
 
 
 //==================================================================
@@ -100,27 +108,60 @@ router.get('/student-data/', fetchuser, async (req, res) => {
 
 // Multer configurations
 // Configure Multer
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-      cb(null, 'uploads/') // Make sure this directory exists
+// const storage = multer.diskStorage({
+//     destination: function (req, file, cb) {
+//       cb(null, 'uploads/') // Make sure this directory exists
+//     },
+//     filename: function (req, file, cb) {
+//         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+//         cb(null, uniqueSuffix + path.extname(file.originalname)); // Naming the file uniquely
+//     }
+//   });
+
+//   const fileFilter = (req, file, cb) => {
+//     // Accept images only
+//     if (!file.originalname.match(/\.(jpg|jpeg|png|pdf|heic)$/)) {
+//       req.fileValidationError = 'Only image and pdf files are allowed!';
+//       return cb(new Error('Only image and pdf files are allowed!'), false);
+//     }
+//     cb(null, true);
+//   };
+
+//   const upload = multer({ storage: storage, fileFilter: fileFilter, limits: { fileSize: 1024 * 1024 * 5 } }); // Limit of 5MB
+
+
+//==================================================================
+//################ Multer configurations with AWS ##################
+//==================================================================
+
+const upload = multer({
+    storage: multerS3({
+      s3: s3,
+      bucket: 'bookbuddyapiaws', // Replace with your S3 bucket name
+      acl: 'public-read', // Adjust based on your permissions requirements
+      metadata: (req, file, cb) => {
+        const contentType = file.mimetype; // Get mimetype from Multer
+        //console.log(contentType)
+        cb(null, { fieldName: file.fieldname, ContentType: contentType });
     },
-    filename: function (req, file, cb) {
+      key: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname)); // Naming the file uniquely
-    }
+        //console.log('Generated filename:', uniqueSuffix + path.extname(file.originalname)); // Log generated filename
+        const studentUid = req.body.name.replace(/\s/g, '') ||'';
+        const filename = `${studentUid}-${uniqueSuffix}${path.extname(file.originalname)}`;
+        cb(null, filename);
+      }
+    }),
+    fileFilter: (req, file, cb) => {
+      // Accept images and pdf only
+      if (!file.originalname.match(/\.(jpg|jpeg|png|pdf|heic)$/)) {
+        req.fileValidationError = 'Only image and pdf files are allowed!';
+        return cb(new Error('Only image and pdf files are allowed!'), false);
+      }
+      cb(null, true);
+    },
+    limits: { fileSize: 1024 * 1024 * 5 } // Limit of 5MB
   });
-
-  const fileFilter = (req, file, cb) => {
-    // Accept images only
-    if (!file.originalname.match(/\.(jpg|jpeg|png|pdf|heic)$/)) {
-      req.fileValidationError = 'Only image and pdf files are allowed!';
-      return cb(new Error('Only image and pdf files are allowed!'), false);
-    }
-    cb(null, true);
-  };
-
-  const upload = multer({ storage: storage, fileFilter: fileFilter, limits: { fileSize: 1024 * 1024 * 5 } }); // Limit of 5MB
-
 
 
 //==================================================================
@@ -129,6 +170,8 @@ const storage = multer.diskStorage({
 
 // Route 2: Creating one with uploads: Signup
 router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'documentid', maxCount: 1 }]), async (req, res) => {
+    console.log('Files uploaded:', req.files);
+
     let success=false;
     let newUsername;
     // Loop until a unique username is found
@@ -147,8 +190,13 @@ router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: '
     const avatar = getRandomAvatar(req.body.gender); //Assign random avatar
 
     // Access the files via req.files.photo[0] and req.files.documentid[0]
-    const photoPath = req.files.photo ? req.files.photo[0].path : '';
-    const documentPath = req.files.documentid ? req.files.documentid[0].path : '';
+    const { photo = [], documentid = [] } = req.files; // Set defaults
+    const photoPath = photo.length > 0 ? photo[0].location : '';
+    const documentPath = documentid.length > 0 ? documentid[0].location : '';
+
+      // Log the uploaded file URLs
+//   console.log('Photo URL:', photoPath);
+//   console.log('Document ID URL:', documentPath);
 
     const students = new Students({
         name: req.body.name,
@@ -185,6 +233,7 @@ router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: '
         success=false;
         next(err);
     }
+    //console.log('Reached upload route handler!');
 }, (error, req, res, next) => { // Error handling middleware
     if (error instanceof multer.MulterError) {
         // A Multer error occurred when uploading.
@@ -208,7 +257,99 @@ router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: '
     next();
 })
 
+//==================================================================
+//############################ Signup copy ##############################
+//==================================================================
 
+// // Route 2: Creating one with uploads: Signup
+// router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'documentid', maxCount: 1 }]), async (req, res) => {
+//     console.log('Files uploaded:', req.files);
+
+//     let success=false;
+//     let newUsername;
+//     // Loop until a unique username is found
+//     console.log("hello")
+//     while (true) {
+//         newUsername = generateUsername(); // Generate a potential username
+
+//         // Check if the generated username is unique in the database
+//         const existingUser = await Students.findOne({ uid: newUsername });
+//         if (!existingUser) {
+//             // Unique username found, break the loop
+//             break;
+//         }
+//     }
+//     const salt = await bcrypt.genSalt(10);
+//     const secPass = await bcrypt.hash(req.body.password, salt);
+//     const avatar = getRandomAvatar(req.body.gender); //Assign random avatar
+
+//     // Access the files via req.files.photo[0] and req.files.documentid[0]
+//     const { photo = [], documentid = [] } = req.files; // Set defaults
+//     const photoPath = photo.length > 0 ? photo[0].location : '';
+//     const documentPath = documentid.length > 0 ? documentid[0].location : '';
+
+//       // Log the uploaded file URLs
+//   console.log('Photo URL:', photoPath);
+//   console.log('Document ID URL:', documentPath);
+
+//     const students = new Students({
+//         name: req.body.name,
+//         email: req.body.email,
+//         gender: req.body.gender,
+//         password: secPass,
+//         address: req.body.address,
+//         phone: req.body.phone,
+//         parentsphone: req.body.parentsphone,
+//         photo: photoPath,
+//         documentid: documentPath,
+//         uid: newUsername,
+//         regisDate: req.body.regisDate,
+//         role: req.body.email === process.env.THALAIVA ? "Superadmin" : req.body.role || "Student",
+//         avatar: avatar // Set the avatar field
+//     })
+//     const data = {
+//         students: {
+//             id: students.id
+//         }
+//     }
+    
+//         const [user, phone] = await Promise.all([Students.findOne({ email: req.body.email }), Students.findOne({ phone: req.body.phone })]);
+//         if(user || phone) {
+//             return user ? res.status(400).json({ error: "Sorry, a user with this email already exists." }) : phone ? res.status(400).json({ error: "Sorry, a user with this phone number already exists." }) : "";
+//         }
+
+//         try {
+//         const newStudents = await students.save()
+//         const authToken = jwt.sign(data, JWT_SECRET)
+//         success=true;
+//         res.status(201).json({success, authToken, newStudents})
+//     } catch (err){
+//         success=false;
+//         next(err);
+//     }
+//     console.log('Reached upload route handler!');
+// }, (error, req, res, next) => { // Error handling middleware
+//     if (error instanceof multer.MulterError) {
+//         // A Multer error occurred when uploading.
+//         let message = 'An error occurred during the file upload.';
+//         if (error.code === 'LIMIT_FILE_SIZE') {
+//             message = 'File too large. Please upload a file smaller than 5MB.';
+//         } else if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+//             message = 'Too many files uploaded.';
+//         } else {
+//             message = error.message;
+//         }
+//         return res.status(400).json({ success: false, message: message });
+//     } else if (req.fileValidationError) {
+//         // An error occurred during file validation
+//         return res.status(400).json({ success: false, message: req.fileValidationError });
+//     } else if (error) {
+//         // An unknown error occurred
+//         return res.status(500).json({ success: false, message: error.message });
+//     }
+//     // If there's no error, pass control to the next handler (if any)
+//     next();
+// })
 
 // Updating one
 // router.patch('/update/:id', fetchuser, getStudents, async (req, res) => {
@@ -276,7 +417,7 @@ router.patch('/update/:id', fetchuser, getStudents, upload.fields([{ name: 'phot
                     if (err) console.error(`Failed to delete old photo: ${student.photo}`, err);
                 });
             }
-            student.photo = req.files['photo'][0].path;
+            student.photo = req.files['photo'][0].location;
         }
 
         // Handle document update and deletion
@@ -286,7 +427,7 @@ router.patch('/update/:id', fetchuser, getStudents, upload.fields([{ name: 'phot
                     if (err) console.error(`Failed to delete old document: ${student.documentid}`, err);
                 });
             }
-            student.documentid = req.files['documentid'][0].path;
+            student.documentid = req.files['documentid'][0].location;
         }
 
         // Save the updated student data
@@ -666,6 +807,8 @@ function getRandomAvatar(gender) {
 //         res.status(500).send('Error updating avatars');
 //     }
 // });
+
+
 
 
 
