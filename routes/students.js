@@ -380,6 +380,39 @@ router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: '
 // })
 
 //==================================================================
+//#################### checking unique email #######################
+//==================================================================
+router.post('/check-email', async (req, res) => {
+    const { email } = req.body;
+    try {
+      const existingUser = await Students.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ available: false, message: "Email already exists." });
+      }
+      return res.status(200).json({ available: true });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+//==================================================================
+//#################### checking unique email #######################
+//==================================================================
+router.post('/check-phone', async (req, res) => {
+    const { phone } = req.body;
+    try {
+      const existingUser = await Students.findOne({ phone });
+      if (existingUser) {
+        return res.status(400).json({ available: false, message: "Phone number already exists." });
+      }
+      return res.status(200).json({ available: true });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+//==================================================================
 //############################ Update ##############################
 //==================================================================
 
