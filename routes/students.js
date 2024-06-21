@@ -139,6 +139,7 @@ const upload = multer({
       s3: s3,
       bucket: 'bookbuddyapiaws', // Replace with your S3 bucket name
       acl: 'public-read', // Adjust based on your permissions requirements
+      contentType: multerS3.AUTO_CONTENT_TYPE,
       metadata: (req, file, cb) => {
         const contentType = file.mimetype; // Get mimetype from Multer
         //console.log(contentType)
