@@ -9,8 +9,8 @@ const Audit = require('../models/audit');
 router.get('/getlog', fetchuser, async(req, res) => {
     //console.log("User role:", req.students.role);
     try {
-        //console.log("User role:", req.students.role);
-        if (req.students.role === "Superadmin") {
+        console.log("User role:", req.students.role);
+        if (!req.students.role === "Superadmin") {
             return res.status(403).send({ error: "Unauthorized access" });
           }
         const activity = await Audit.find();
