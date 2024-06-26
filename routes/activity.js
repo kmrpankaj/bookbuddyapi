@@ -10,9 +10,9 @@ router.get('/getlog', fetchuser, async(req, res) => {
     //console.log("User role:", req.students.role);
     try {
         //console.log("User role:", req.students.role);
-        // if (!(req.students.role === "Admin" || req.students.role === "Superadmin")) {
-        //     return res.status(403).send({ error: "Unauthorized access" });
-        //   }
+        if (req.students.role === "Superadmin") {
+            return res.status(403).send({ error: "Unauthorized access" });
+          }
         const activity = await Audit.find();
         res.json(activity)
     } catch (error) {
