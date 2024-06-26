@@ -15,6 +15,7 @@ const fs = require('fs'); // fs module to delete files
 const multer = require('multer');
 const multerS3 = require('multer-s3');
 const AWS = require('aws-sdk');
+const auditLog = require('../middleware/auditlog')
 
 const siteUrl = process.env.SITE_URL
 
@@ -258,127 +259,6 @@ router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: '
     next();
 })
 
-//==================================================================
-//############################ Signup copy ##############################
-//==================================================================
-
-// // Route 2: Creating one with uploads: Signup
-// router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'documentid', maxCount: 1 }]), async (req, res) => {
-//     console.log('Files uploaded:', req.files);
-
-//     let success=false;
-//     let newUsername;
-//     // Loop until a unique username is found
-//     console.log("hello")
-//     while (true) {
-//         newUsername = generateUsername(); // Generate a potential username
-
-//         // Check if the generated username is unique in the database
-//         const existingUser = await Students.findOne({ uid: newUsername });
-//         if (!existingUser) {
-//             // Unique username found, break the loop
-//             break;
-//         }
-//     }
-//     const salt = await bcrypt.genSalt(10);
-//     const secPass = await bcrypt.hash(req.body.password, salt);
-//     const avatar = getRandomAvatar(req.body.gender); //Assign random avatar
-
-//     // Access the files via req.files.photo[0] and req.files.documentid[0]
-//     const { photo = [], documentid = [] } = req.files; // Set defaults
-//     const photoPath = photo.length > 0 ? photo[0].location : '';
-//     const documentPath = documentid.length > 0 ? documentid[0].location : '';
-
-//       // Log the uploaded file URLs
-//   console.log('Photo URL:', photoPath);
-//   console.log('Document ID URL:', documentPath);
-
-//     const students = new Students({
-//         name: req.body.name,
-//         email: req.body.email,
-//         gender: req.body.gender,
-//         password: secPass,
-//         address: req.body.address,
-//         phone: req.body.phone,
-//         parentsphone: req.body.parentsphone,
-//         photo: photoPath,
-//         documentid: documentPath,
-//         uid: newUsername,
-//         regisDate: req.body.regisDate,
-//         role: req.body.email === process.env.THALAIVA ? "Superadmin" : req.body.role || "Student",
-//         avatar: avatar // Set the avatar field
-//     })
-//     const data = {
-//         students: {
-//             id: students.id
-//         }
-//     }
-    
-//         const [user, phone] = await Promise.all([Students.findOne({ email: req.body.email }), Students.findOne({ phone: req.body.phone })]);
-//         if(user || phone) {
-//             return user ? res.status(400).json({ error: "Sorry, a user with this email already exists." }) : phone ? res.status(400).json({ error: "Sorry, a user with this phone number already exists." }) : "";
-//         }
-
-//         try {
-//         const newStudents = await students.save()
-//         const authToken = jwt.sign(data, JWT_SECRET)
-//         success=true;
-//         res.status(201).json({success, authToken, newStudents})
-//     } catch (err){
-//         success=false;
-//         next(err);
-//     }
-//     console.log('Reached upload route handler!');
-// }, (error, req, res, next) => { // Error handling middleware
-//     if (error instanceof multer.MulterError) {
-//         // A Multer error occurred when uploading.
-//         let message = 'An error occurred during the file upload.';
-//         if (error.code === 'LIMIT_FILE_SIZE') {
-//             message = 'File too large. Please upload a file smaller than 5MB.';
-//         } else if (error.code === 'LIMIT_UNEXPECTED_FILE') {
-//             message = 'Too many files uploaded.';
-//         } else {
-//             message = error.message;
-//         }
-//         return res.status(400).json({ success: false, message: message });
-//     } else if (req.fileValidationError) {
-//         // An error occurred during file validation
-//         return res.status(400).json({ success: false, message: req.fileValidationError });
-//     } else if (error) {
-//         // An unknown error occurred
-//         return res.status(500).json({ success: false, message: error.message });
-//     }
-//     // If there's no error, pass control to the next handler (if any)
-//     next();
-// })
-
-// Updating one
-// router.patch('/update/:id', fetchuser, getStudents, async (req, res) => {
-//     let success=false;
-//     if(req.body.name != null) {
-//         res.students.name = req.body.name
-//     }
-//     if(req.body.email != null){
-//         res.students.email = req.body.email
-//     }
-//     if(req.body.regisDate != null) {
-//         res.students.regisDate = req.body.regisDate
-//     }
-
-//     try {
-//         const updatedStudents = await Students.findByIdAndUpdate(
-//             req.params.id,
-//             req.body,
-//             { new: true }
-//         )
-//         success=true;
-//         res.json({success, updatedStudents})
-        
-//     } catch (err) {
-//         res.status(400).json({message: err.message})
-//         success=false
-//     }
-// })
 
 //==================================================================
 //#################### checking unique email #######################
@@ -419,7 +299,9 @@ router.post('/check-phone', async (req, res) => {
 
 
 // updating one
-router.patch('/update/:id', fetchuser, getStudents, upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'documentid', maxCount: 1 }]), async (req, res) => {
+router.patch('/update/:id', fetchuser, getStudents, auditLog, upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'documentid', maxCount: 1 }]), async (req, res) => {
+    req.model = Students;
+
     try {
         // Existing student data is expected to be attached to the response by the 'getStudents' middleware
         const student = res.students;
@@ -427,7 +309,7 @@ router.patch('/update/:id', fetchuser, getStudents, upload.fields([{ name: 'phot
 
         // Dynamically update provided fields, except 'photo' and 'documentid' to handle them separately
         Object.keys(req.body).forEach(key => {
-            if (!['photo', 'documentid', 'accountStatus', 'password'].includes(key)) {
+            if (!['photo', 'documentid', 'accountStatus'].includes(key)) {
                 student[key] = req.body[key];
             }
         });
@@ -435,13 +317,6 @@ router.patch('/update/:id', fetchuser, getStudents, upload.fields([{ name: 'phot
         // Specifically handle 'accountStatus' if provided
         if ('accountStatus' in req.body) {
             student.accountStatus = req.body.accountStatus === 'true' ? true : req.body.accountStatus === 'false' ? false : student.accountStatus;
-        }
-
-        // Handle password update if provided
-        if (req.body.password) {
-            const saltRounds = 10; // Adjust as per your security requirement
-            const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
-            student.password = hashedPassword;
         }
 
         // Handle photo update and deletion
@@ -500,7 +375,8 @@ router.patch('/update/:id', fetchuser, getStudents, upload.fields([{ name: 'phot
 
 
 // PATCH endpoint to toggle a student's account status
-router.patch('/toggleacStatus/:id', fetchuser, async (req, res) => {
+router.patch('/toggleacStatus/:id', fetchuser, auditLog, async (req, res) => {
+    req.model = Students;
     const { id } = req.params; // Student ID from URL
     const { accountStatus } = req.body; // New account status from request body
   
@@ -528,7 +404,8 @@ router.patch('/toggleacStatus/:id', fetchuser, async (req, res) => {
 
 
 // Deleting one
-router.delete('/delete/:id', fetchuser, getStudents, async (req, res) => {
+router.delete('/delete/:id', fetchuser, getStudents, auditLog, async (req, res) => {
+    req.model = Students;
     let success=false
     try{
         if (req.students.role !== "Superadmin") {

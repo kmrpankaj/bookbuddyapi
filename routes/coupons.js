@@ -113,7 +113,7 @@ router.delete('/delete/:id', fetchuser, async (req, res) => {
 
 router.post('/check-coupon', async (req, res) => {
     const { code, productCount, productTypes } = req.body;  // productCount should be the total number of items in the cart
-console.log(req.body)
+//console.log(req.body)
     try {
         const coupon = await DiscountCoupon.findOne({ code: code.toUpperCase(), isActive: true });
         if (!coupon) {

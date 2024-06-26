@@ -4,6 +4,14 @@ const router = express.Router();
 const { Seat } = require('../models/seats');
 const { body, validationResult } = require('express-validator');
 const Students = require('../models/students')
+const auditLogFull = require('../middleware/auditLogFull')
+
+
+// Middleware to set req.model specifically for Seat
+function setSeatModel(req, res, next) {
+    req.model = Seat;
+    next();
+}
 
 // Route 1: Get all the seats using: GET /seats/getseats. Requires login
 router.get('/fetchallseats', fetchuser, async (req, res)=> {
@@ -99,7 +107,8 @@ for (const slotKey in seatStatus) {
 //     res.json({seat});
 // })
 
-router.patch('/updateseats/:id', fetchuser, async (req, res) => {
+router.patch('/updateseats/:id', fetchuser, setSeatModel, auditLogFull, async (req, res) => {
+    req.model = Seat;
     const { seatNumber, seatLocation, seatStatus } = req.body;
 
     // Extract the slot information from seatStatus
@@ -173,7 +182,8 @@ router.patch('/updateseats/:id', fetchuser, async (req, res) => {
 
 
   // Route 3: Delete seats using: DELETE /seats/deleteseats. Requires login
-router.delete('/deleteseats/:id', fetchuser, async (req, res) => {
+router.delete('/deleteseats/:id', fetchuser, setSeatModel, auditLogFull, async (req, res) => {
+    req.model = Seat;
     try{
         if (req.students.role !== "Superadmin") {
             return res.status(403).send({ error: "Unauthorized access" });
@@ -208,8 +218,11 @@ function setOneMonthValidity() {
     return currentDate;
   }
 
+
 // Router 4: New patch request to update seats and delete the previous one.
-router.patch('/updateseatsdelete/:id', fetchuser, async (req, res) => {
+router.patch('/updateseatsdelete/:id', fetchuser, setSeatModel, auditLogFull, async (req, res) => {
+    req.model = Seat;
+    console.log('Model set for route:', req.model);
     const { seatStatus } = req.body;
     const [bookedSlotName, slotData] = Object.entries(seatStatus)[0];
     const newUserId = slotData.bookedBy;
@@ -326,7 +339,8 @@ router.patch('/updateseatsdelete/:id', fetchuser, async (req, res) => {
 // });
 
 // Router 5 when json has empty bookedBy field -- this is being used
-router.patch('/emptyseat/:id', fetchuser, async (req, res) => {
+router.patch('/emptyseat/:id', fetchuser, setSeatModel, auditLogFull,  async (req, res) => {
+    req.model = Seat;
     const { seatStatus } = req.body;
     const [bookedSlotName, slotData] = Object.entries(seatStatus)[0];
     const userId = slotData.bookedBy; // This can be an empty string for removal
@@ -365,7 +379,7 @@ router.patch('/emptyseat/:id', fetchuser, async (req, res) => {
                 }
             });
 
-            console.log(affectedStudents, "affacted student")
+            //console.log(affectedStudents, "affacted student")
 
             for (let student of affectedStudents) {
                 student.seatAssigned = student.seatAssigned.filter(assignment => 

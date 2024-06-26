@@ -30,7 +30,7 @@ async function auditLog(req, res, next) {
                     changes: differences, // Store only the differences
                     operatedBy: user ? user.name : 'Unknown User', // Assuming req.students.id is available
                     operationDate: new Date(),
-                    affactedDoc: originalData.name
+                    affactedDoc: originalData.seatNumber
                 });
                 await auditEntry.save();
             }

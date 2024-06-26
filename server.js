@@ -26,6 +26,21 @@ app.get('/', (req, res) => {
     res.redirect(process.env.SITE_URL);
 });
 
+// Model-setting middleware
+const Students = require('./models/students');
+const Seat = require('./models/seats');
+const Bookings = require('./models/bookings'); // Example path
+app.use((req, res, next) => {
+    if (req.path.startsWith('/students')) {
+        req.model = Students;
+    } else if (req.path.startsWith('/seats')) {
+        req.model = Seat;
+    } else if (req.path.startsWith('/bookings')) {
+        req.model = Bookings;
+    }
+    next();
+});
+
 // Available Routes
 const studentsRouter = require('./routes/students');
 app.use('/students', studentsRouter);
@@ -38,6 +53,9 @@ app.use('/bookings', bookingRouter);
 
 const couponRouter = require('./routes/coupons');
 app.use('/coupons', couponRouter);
+
+const activityRouter = require('./routes/activity');
+app.use('/activity', activityRouter);
 
 const emailRoutes = require('./routes/email');
 app.use('/email', emailRoutes);
