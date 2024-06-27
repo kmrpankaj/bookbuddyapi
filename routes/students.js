@@ -172,7 +172,7 @@ const upload = multer({
 
 // Route 2: Creating one with uploads: Signup
 router.post('/create/', upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'documentid', maxCount: 1 }]), async (req, res) => {
-    console.log('Files uploaded:', req.files);
+    //console.log('Files uploaded:', req.files);
 
     let success=false;
     let newUsername;
