@@ -43,6 +43,11 @@ const bookingsSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    paymentMode: {
+        type: String,
+        enum: ['Online', 'Cash'],
+        default: 'Online'
+    },
     // New fields for order creation data
     orderStatus: Boolean,
     msg: String,
@@ -66,7 +71,7 @@ const bookingsSchema = new mongoose.Schema({
       },
     paymentStatus: {
       type: String,
-      enum: ['pending', 'success', 'failed'],
+      enum: ['pending', 'success', 'failed', 'paid'],
       default: 'pending'
     },
     upiTxnId: String, // UPI Transaction ID, received from the API
