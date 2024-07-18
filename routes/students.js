@@ -450,7 +450,9 @@ router.post('/login', [
     // if there are errors, return bad request and the errors
     const errors = validationResult(req);
     if(!errors.isEmpty()){
-        return res.status(400).json({errors: errors.array()})
+        const formattedErrors = errors.array().map(error => error.msg); // Extract error messages  ;           
+        return res.status(400).json({ errors: formattedErrors });
+        
     }
     const {email,password} = req.body
     try {

@@ -11,7 +11,7 @@ const PdfDocument = require('@ironsoftware/ironpdf').PdfDocument;
 const resend = new Resend('re_KUJpjvYH_9M4jU7u1N25CKkAG4H8qRzmK');
 const host = process.env.BACKEND_URL
 
-
+//==============================================================================
 // Route 1: Get all the booking using: GET /bookings/getbookings. Requires login
 router.get('/getbooking', async (req, res) => {
     try {
@@ -23,6 +23,18 @@ router.get('/getbooking', async (req, res) => {
     }
 })
 
+router.get('/api/bookings', async (req, res) => {
+    try {
+        const bookings = await Bookings.find();
+        res.status(200).json(bookings);
+    } catch (error) {
+        console.error('Error fetching bookings:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+
+//==========================================================================================
 // Route 2: Book a slot: GET /bookings/bookaseat. Requires login
 router.post('/bookaseat', fetchuser, [
     body('slot', 'Enter a valid slot').isLength({ min: 3 }),
@@ -47,6 +59,8 @@ router.post('/bookaseat', fetchuser, [
     }
 })
 
+
+//============================================================================
 // Router 3: Webhook: Transaction status response after payment is done
 router.post('/api/webhook', async (req, res) => {
     //console.log('Received webhook with body:', req.body);  // Log the incoming webhook data
@@ -84,7 +98,7 @@ router.post('/api/webhook', async (req, res) => {
             customerEmail: customer_email,
             customerMobile: customer_mobile,
             redirectUrl: redirect_url,
-            paymentStatus: status === "success" ? 'success' : 'failed',
+            paymentStatus: status,
             upiTxnId: upi_txn_id,
             statusRemark: remark,
             ipAddress: ip,
@@ -133,7 +147,7 @@ router.post('/api/webhook', async (req, res) => {
         await Promise.all(updates);
         // Call the function to send the POST request
         const receiptSent = await sendReceiptViaPost(booking.clientTxnId);
-       
+
         if (!receiptSent) {
             console.error('Failed to send email receipt');
             // Handle receipt sending failure (optional: retry or log for investigation)
@@ -146,7 +160,7 @@ router.post('/api/webhook', async (req, res) => {
     }
 });
 
-
+//===========================================================================================
 // Router 4: Endpoint to get the transaction status by client transaction ID
 router.get('/api/transaction/:clientTxnId', async (req, res) => {
     try {
@@ -164,6 +178,8 @@ router.get('/api/transaction/:clientTxnId', async (req, res) => {
     }
 });
 
+
+//=========================================================================================
 // Router: 5 // POST endpoint to create an order and save the API response
 router.post('/create/order', async (req, res) => {
 
@@ -266,8 +282,140 @@ router.post('/create/order', async (req, res) => {
         res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
     }
 });
+// ======================================================
+// Router: 6: Endpoint to create order offline
+router.post('/create/direct-order', async (req, res) => {
+    const {
+        bookedBy,
+        seatDetails, // Directly use seatDetails from the request body
+        bookingDate,
+        clientTxnId,
+        createdAt,
+        amount,
+        discountCoupon,
+        discountValue,
+        totalPrice,
+        paymentMode,
+        orderStatus,
+        pCash,
+        pOnline,
+        pInfo,
+        customerName,
+        customerEmail,
+        customerMobile,
+        udf1,
+        udf2,
+        udf3,
+        paymentStatus,
+        updatedAt,
 
-// Router: 6: Endpoint to generate a unique transaction ID
+    } = req.body;
+    console.log(req.body)
+    try {
+        // Create the order in the database
+        const newOrder = new Bookings({
+            bookedBy,
+            seatDetails,
+            bookingDate: bookingDate,
+            clientTxnId: clientTxnId,
+            createdAt,
+            amount,
+            discountCoupon,
+            discountValue,
+            totalPrice,
+            paymentMode,
+            orderStatus,
+            pCash,
+            pOnline,
+            pInfo,
+            customerName,
+            customerEmail,
+            customerMobile,
+            udf1,
+            udf2,
+            udf3,
+            orderStatus: true, // Set initial order status
+            paymentStatus,
+            updatedAt,
+        });
+
+        await newOrder.save();
+        res.status(200).json({ success: true, message: 'Order created and saved successfully', order: newOrder });
+    } catch (error) {
+        console.error('Error processing order:', error);
+        res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    }
+});
+
+
+
+
+// =======================================================
+// Router: 7: Endpoint for direct webhook
+router.post('/api/direct-webhook', async (req, res) => {
+    try {
+        const { clientTxnId } = req.body;
+
+        if (!clientTxnId) {
+            return res.status(400).json({ message: 'Missing required field: clientTxnId' });
+        }
+
+        // Find the corresponding booking using the transaction ID
+        const booking = await Bookings.findOne({ clientTxnId });
+        if (!booking) {
+            return res.status(404).json({ message: 'Booking not found' });
+        }
+
+        // Process updates only for renewal types or if the seat number is already assigned
+        const updates = booking.seatDetails
+            .filter(seat => seat.type === 'renewal' || seat.seatNumber)
+            .map(seat => {
+                const slotPath = `seatStatus.${seat.slot}`; // Dynamic path to the slot
+                const seatUpdate = Seat.updateOne(
+                    { seatNumber: seat.seatNumber },
+                    { $set: { [`${slotPath}.seatValidTill`]: seat.seatValidTill, [`${slotPath}.bookedBy`]: booking.bookedBy } }
+                );
+
+                const studentUpdate = Students.updateOne(
+                    { uid: booking.bookedBy, "seatAssigned.seatNumber": seat.seatNumber, "seatAssigned.slot": seat.slot },
+                    { $set: { "seatAssigned.$.validityDate": new Date(seat.seatValidTill).toISOString().split('T')[0] } }
+                );
+
+                return Promise.all([seatUpdate, studentUpdate]);
+            });
+
+        await Promise.all(updates);
+
+        // Optionally, you can call a function to send a receipt or other notifications
+        // const receiptSent = await sendReceiptViaPost(booking.clientTxnId);
+
+        // if (!receiptSent) {
+        //   console.error('Failed to send email receipt');
+        // }
+
+        res.status(200).json({ message: 'Seats and student data updated successfully' });
+    } catch (error) {
+        console.error('Error handling direct webhook:', error);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+});
+
+
+// =======================================================
+// Router: 9: Endpoint to delete a booking
+router.delete('/api/delete/booking/:id', async (req, res) => {
+    try {
+      const bookingId = req.params.id;
+      await Bookings.findByIdAndDelete(bookingId);
+      res.status(200).json({ message: 'Booking deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting booking:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+// =======================================================
+// Router: 9: Endpoint to generate a unique transaction ID
 // 
 router.get('/generate-txn-id', async (req, res) => {
     let unique = false;
@@ -284,7 +432,7 @@ router.get('/generate-txn-id', async (req, res) => {
 });
 
 
-// Router: 6 Route to generate PDF for a specific booking
+// Router: 10 Route to generate PDF for a specific booking
 router.get('/generate-receipt/:clientTxnId', async (req, res) => {
     try {
         const clientTxnId = req.params.clientTxnId;
@@ -583,7 +731,7 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
                                                             </td>
                                                             <td data-id="__react-email-column">
                                                                     <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Txn Date:</p>
-                                                                    <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${formatDate(booking.txnAt)}</p>
+                                                                    <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${formatDate(booking.bookingDate)}</p>
                                                             </td>
                                                             <td data-id="__react-email-column" style="float:right">
                                                                 <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Transaction Id:</p>
@@ -688,7 +836,7 @@ async function sendReceiptViaPost(clientTxnId) {
         const options = {
             method: 'POST',
         };
-       // console.log(`URL being called: ${url}`); 
+        // console.log(`URL being called: ${url}`); 
         const response = await fetch(url, options);
 
         if (!response.ok) {
@@ -702,6 +850,32 @@ async function sendReceiptViaPost(clientTxnId) {
         return false;
     }
 }
+
+
+// Route 7: Search students
+router.get('/search-students', async (req, res) => {
+    try {
+        const { query } = req.query;
+        if (!query) {
+            return res.status(400).json({ message: "Query parameter is required" });
+        }
+
+        const searchCriteria = {
+            $or: [
+                { uid: { $regex: query, $options: 'i' } },
+                { name: { $regex: query, $options: 'i' } },
+                { phone: { $regex: query, $options: 'i' } },
+                { email: { $regex: query, $options: 'i' } }
+            ]
+        };
+
+        const students = await Students.find(searchCriteria).limit(10);
+        res.json(students);
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send("Internal Server Error");
+    }
+});
 
 
 module.exports = router

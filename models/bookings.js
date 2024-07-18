@@ -28,6 +28,7 @@ const bookingsSchema = new mongoose.Schema({
     clientTxnId: {
         type: String,
         required: true,
+        unique: true,
     },
     // discount can be added here as needed
     discountCoupon: {
@@ -45,7 +46,7 @@ const bookingsSchema = new mongoose.Schema({
     },
     paymentMode: {
         type: String,
-        enum: ['Online', 'Cash'],
+        enum: ['Online', 'Cash', 'Mixed'],
         default: 'Online'
     },
     // New fields for order creation data
@@ -63,6 +64,9 @@ const bookingsSchema = new mongoose.Schema({
     // User-defined fields
     udf1: String,
     udf2: String,
+    udf3: String,
+    pCash: Number,
+    pOnline: Number,
     upi_intent: {
         bhim_link: String,
         phonepe_link: String,
