@@ -405,45 +405,45 @@ router.post('/api/direct-webhook', async (req, res) => {
 // Router: 9: Endpoint to delete a booking
 router.delete('/api/delete/booking/:id', async (req, res) => {
     try {
-      const bookingId = req.params.id;
-      await Bookings.findByIdAndDelete(bookingId);
-      res.status(200).json({ message: 'Booking deleted successfully' });
+        const bookingId = req.params.id;
+        await Bookings.findByIdAndDelete(bookingId);
+        res.status(200).json({ message: 'Booking deleted successfully' });
     } catch (error) {
-      console.error('Error deleting booking:', error);
-      res.status(500).json({ message: 'Internal server error' });
+        console.error('Error deleting booking:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
-  });
+});
 
 
 // =======================================================
 // Router: 10: Endpoint to generate a unique transaction ID
 router.patch('/api/edit/bookings/:id', async (req, res) => {
     try {
-      const { id } = req.params;
-      const updatedBooking = req.body;
-      const booking = await Bookings.findByIdAndUpdate(id, updatedBooking, { new: true });
-      res.status(200).json(booking);
+        const { id } = req.params;
+        const updatedBooking = req.body;
+        const booking = await Bookings.findByIdAndUpdate(id, updatedBooking, { new: true });
+        res.status(200).json(booking);
     } catch (error) {
-      console.error('Error updating booking:', error);
-      res.status(500).json({ message: 'Internal server error' });
+        console.error('Error updating booking:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
-  });
+});
 
 
 // Fetch a single booking by ID
 router.get('/api/singlebookings/:id', async (req, res) => {
     try {
-      const { id } = req.params;
-      const booking = await Bookings.findById(id);
-      if (!booking) {
-        return res.status(404).json({ message: 'Booking not found' });
-      }
-      res.status(200).json(booking);
+        const { id } = req.params;
+        const booking = await Bookings.findById(id);
+        if (!booking) {
+            return res.status(404).json({ message: 'Booking not found' });
+        }
+        res.status(200).json(booking);
     } catch (error) {
-      console.error('Error fetching booking:', error);
-      res.status(500).json({ message: 'Internal server error' });
+        console.error('Error fetching booking:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
-  });
+});
 
 
 // =======================================================
@@ -478,9 +478,9 @@ router.get('/generate-receipt/:clientTxnId', async (req, res) => {
         const convertSlotToTimings = (slot) => {
             const slotMap = {
                 morning: "06 am to 10 am",
-                afternoon: "02 pm to 06 pm",
-                evening: "06 pm to 10 pm",
-                night: "10 pm to 02 am",
+                afternoon: "10 am to 02 pm",
+                evening: "02 pm to 06 pm",
+                night: "06 pm to 10 pm",
             };
             return slotMap[slot] || "Time not available";
         };
@@ -512,7 +512,7 @@ router.get('/generate-receipt/:clientTxnId', async (req, res) => {
                 </td>
                 <td width="20%">
                     <div class="text-right">
-                        <span class="font-weight-bold">₹350</span>
+                        <span class="font-weight-bold">₹400</span>
                     </div>
                 </td>
             </tr>
@@ -546,14 +546,15 @@ router.get('/generate-receipt/:clientTxnId', async (req, res) => {
                                 <h1 class=" mx-3">BookBuddy</h1><span class="text-light mx-3 px-1">Library &amp; Co-Study Zone</span></div>
                         </div>
                         <div class="invoice p-5 pt-4">
-                            <h3 class="text-center">Payment Reciept</h3><span class="font-weight-bold d-block mt-4"><span class="text-muted">Name: </span>${booking.customerName}</span><span class="d-block"><span class="text-muted">Email: </span>${booking.customerEmail}</span><span><span class="text-muted">Mobile: </span>${booking.customerMobile}</span>
+                            <h3 class="text-center">Payment Reciept</h3>
+                            <span class="font-weight-bold d-block mt-4"><span class="text-muted">Name: </span>${booking.customerName}</span><span class="d-block"><span class="text-muted">Email: </span>${booking.customerEmail}</span><span><span class="text-muted">Mobile: </span>${booking.customerMobile}</span>
                             <div
                             class="payment border-top mt-3 mb-3 border-bottom table-responsive">
                                 <table class="table table-borderless" style="width: 100%;">
                                     <tbody>
                                         <tr>
                                             <td>
-                                                <div class="py-2"><span class="d-block text-muted">Receipt Date</span><span>${formatDate(booking.txnAt)}</span></div>
+                                                <div class="py-2"><span class="d-block text-muted">Receipt Date</span><span>${formatDate(booking.bookingDate)}</span></div>
                                             </td>
                                             <td>
                                                 <div class="py-2"><span class="d-block text-muted">Receipt No</span><span>${booking.clientTxnId}</span></div>
@@ -562,7 +563,7 @@ router.get('/generate-receipt/:clientTxnId', async (req, res) => {
                                                 <div class="py-2"><span class="d-block text-muted">Payment</span><span>Online</span></div>
                                             </td>
                                             <td>
-                                                <div class="py-2"><span class="d-block text-muted">Transaction ID</span><span class="${(!booking.upiTxnId) ? "text-danger" : ""}">${(!booking.upiTxnId) ? booking.paymentStatus : booking.upiTxnId}</span></div>
+                                                <div class="py-2"><span class="d-block text-muted">${(!booking.upiTxnId) ? 'Status' : "Transaction ID"}</span><span class="${(!booking.upiTxnId) ? "text-danger" : ""}">${(!booking.upiTxnId) ? booking.paymentStatus : booking.upiTxnId}</span></div>
                                             </td>
                                         </tr>
                                     </tbody>
@@ -658,9 +659,9 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
         const convertSlotToTimings = (slot) => {
             const slotMap = {
                 morning: "06 am to 10 am",
-                afternoon: "02 pm to 06 pm",
-                evening: "06 pm to 10 pm",
-                night: "10 pm to 02 am",
+                afternoon: "10 am to 02 pm",
+                evening: "02 pm to 06 pm",
+                night: "06 pm to 10 am",
             };
             return slotMap[slot] || "Time not available";
         };
@@ -687,7 +688,7 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
                             <p style="font-size:14px;line-height:24px;margin:16px 0;padding-left:15px">Table Number: ${seat.seatNumber || "New Booking"} <br />Slot: ${convertSlotToTimings(seat.slot)} <br />Valid through: ${(seat.seatValidTill) ? formatDate(seat.seatValidTill) : "Next term"}</p>
                           </td>
                           <td data-id="__react-email-column" style="float:right">
-                            <p style="font-size:14px;line-height:24px;margin:16px 0;padding-right:15px">₹350</p>
+                            <p style="font-size:14px;line-height:24px;margin:16px 0;padding-right:15px">₹400</p>
                           </td>
                         </tr>
                       </tbody>
@@ -739,7 +740,7 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
                                                     <tbody style="width:100%">
                                                         <tr style="width:100%">
                                                             <td data-id="__react-email-column">
-                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Billed to:</p>
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Name:</p>
                                                                 <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${booking.customerName}</p>
                                                             </td>
                                                             <td data-id="__react-email-column">
@@ -766,7 +767,7 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
                                                                     <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${formatDate(booking.bookingDate)}</p>
                                                             </td>
                                                             <td data-id="__react-email-column" style="float:right">
-                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Transaction Id:</p>
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">${(!booking.upiTxnId) ? 'Status' : 'Transaction Id:'}</p>
                                                                 <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${(!booking.upiTxnId) ? booking.paymentStatus : booking.upiTxnId}</p>
                                                             </td>
                                                         </tr>
@@ -813,12 +814,32 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
                                                     </tbody>
                                                 </table>
                                                 <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
+                                                
+                                                <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation">
+                                                <tbody style="width:100%">
+                                                    <tr style="width:100%">
+                                                    <td data-id="__react-email-column">
+                                                        <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Partial Payment:</p>
+                                                        <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${booking.udf1?'Yes':'No'}</p>
+                                                    </td>
+                                                    <td data-id="__react-email-column">
+                                                        <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Amount Paid:</p>
+                                                        <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${booking.udf1}</p>
+                                                    </td>
+                                                    <td data-id="__react-email-column" style="float:right">
+                                                        <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Due:</p>
+                                                        <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${booking.udf2}</p>
+                                                    </td>
+                                                    </tr>
+                                                </tbody>
+                                                </table>
+                                                <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
                                                 <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation">
                                                     <tbody style="width:100%">
                                                         <tr style="width:100%">
                                                             <td data-id="__react-email-column">
                                                                 <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f">Mode</p>
-                                                                <p style="font-size:14px;line-height:14px;margin:16px 0;margin-top:0;color:#525f7f">Online</p>
+                                                                <p style="font-size:14px;line-height:14px;margin:16px 0;margin-top:0;color:#525f7f">${booking.paymentMode==='Mixed'? 'Online/Cash': booking.paymentMode}</p>
                                                             </td>
                                                             <td data-id="__react-email-column" style="float:right">
                                                                 <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f">Status</p>
@@ -846,7 +867,7 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
         const { data, error } = await resend.emails.send({
             from: '"BookBuddy" <info@bookbuddy.co.in>',
             to: booking.customerEmail,
-            subject: 'Your recent payment receipt',
+            subject: 'Your recent payment receipt!',
             html: html,
         });
 
