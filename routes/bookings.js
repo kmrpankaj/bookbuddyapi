@@ -414,8 +414,40 @@ router.delete('/api/delete/booking/:id', async (req, res) => {
     }
   });
 
+
 // =======================================================
-// Router: 9: Endpoint to generate a unique transaction ID
+// Router: 10: Endpoint to generate a unique transaction ID
+router.patch('/api/edit/bookings/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updatedBooking = req.body;
+      const booking = await Bookings.findByIdAndUpdate(id, updatedBooking, { new: true });
+      res.status(200).json(booking);
+    } catch (error) {
+      console.error('Error updating booking:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+
+// Fetch a single booking by ID
+router.get('/api/singlebookings/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const booking = await Bookings.findById(id);
+      if (!booking) {
+        return res.status(404).json({ message: 'Booking not found' });
+      }
+      res.status(200).json(booking);
+    } catch (error) {
+      console.error('Error fetching booking:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+
+// =======================================================
+// Router: 11: Endpoint to generate a unique transaction ID
 // 
 router.get('/generate-txn-id', async (req, res) => {
     let unique = false;
