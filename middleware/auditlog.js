@@ -8,7 +8,7 @@ async function auditLog(req, res, next) {
         console.error('AuditLog middleware called without req.model defined.');
         return next(new Error('Model not defined for auditing.'));
     }
-console.log(req.model, 'Model')
+//console.log(req.model, 'Model')
     let originalData = null;
     if (req.method !== 'POST') {
         originalData = await req.model.findById(req.params.id).lean(); // Use .lean() for performance
@@ -19,7 +19,7 @@ console.log(req.model, 'Model')
             let newData = null;
             if (req.method === 'POST') {
                 newData = res.locals.newData; // Use the newly created data from res.locals
-                console.log('New Post data:', newData);
+                //console.log('New Post data:', newData);
                 const user = await students.findById(req.students.id).lean();
                 let affactedDoc = 'Unknown Document';
 
@@ -37,10 +37,10 @@ console.log(req.model, 'Model')
                 });
 
                 await auditEntry.save();
-                console.log('Audit Log:', affactedDoc);
+                //console.log('Audit Log:', affactedDoc);
             } else if (req.method !== 'DELETE') {
                 newData = await req.model.findById(req.params.id).lean();
-                console.log('New data:', newData);
+                //console.log('New data:', newData);
             }
 
             const differences = diff(originalData, newData);
