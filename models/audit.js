@@ -8,7 +8,7 @@ const auditSchema = new mongoose.Schema({
     operationType: {
         type: String,
         required: true,
-        enum: ['CREATE', 'PATCH', 'DELETE']
+        enum: ['CREATE', 'PATCH', 'DELETE', 'POST']
     },
     previousData: mongoose.Schema.Types.Mixed,
     newData: mongoose.Schema.Types.Mixed,

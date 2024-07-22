@@ -9,6 +9,7 @@ const Students = require('../models/students')
 const puppeteer = require('puppeteer');
 const PdfDocument = require('@ironsoftware/ironpdf').PdfDocument;
 const resend = new Resend('re_KUJpjvYH_9M4jU7u1N25CKkAG4H8qRzmK');
+const auditLog = require('../middleware/auditlog')
 const host = process.env.BACKEND_URL
 
 //==============================================================================
@@ -284,7 +285,8 @@ router.post('/create/order', async (req, res) => {
 });
 // ======================================================
 // Router: 6: Endpoint to create order offline
-router.post('/create/direct-order', async (req, res) => {
+router.post('/create/direct-order', fetchuser, auditLog, async (req, res) => {
+    req.model = Bookings;
     const {
         bookedBy,
         seatDetails, // Directly use seatDetails from the request body
@@ -310,7 +312,7 @@ router.post('/create/direct-order', async (req, res) => {
         updatedAt,
 
     } = req.body;
-    console.log(req.body)
+    //console.log(req.body, 'Reqbody')
     try {
         // Create the order in the database
         const newOrder = new Bookings({
@@ -340,7 +342,9 @@ router.post('/create/direct-order', async (req, res) => {
         });
 
         await newOrder.save();
-        res.status(200).json({ success: true, message: 'Order created and saved successfully', order: newOrder });
+        res.locals.newData = newOrder.toObject(); // Store the newly created data in res.locals
+        
+        res.status(200).json({ success: true, message: 'Order created and saved successfully', order: newOrder,  });
     } catch (error) {
         console.error('Error processing order:', error);
         res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
@@ -403,7 +407,8 @@ router.post('/api/direct-webhook', async (req, res) => {
 
 // =======================================================
 // Router: 9: Endpoint to delete a booking
-router.delete('/api/delete/booking/:id', async (req, res) => {
+router.delete('/api/delete/booking/:id', fetchuser, auditLog, async (req, res) => {
+    req.model = Bookings;
     try {
         const bookingId = req.params.id;
         await Bookings.findByIdAndDelete(bookingId);
@@ -417,7 +422,8 @@ router.delete('/api/delete/booking/:id', async (req, res) => {
 
 // =======================================================
 // Router: 10: Endpoint to generate a unique transaction ID
-router.patch('/api/edit/bookings/:id', async (req, res) => {
+router.patch('/api/edit/bookings/:id', fetchuser, auditLog, async (req, res) => {
+    req.model = Bookings;
     try {
         const { id } = req.params;
         const updatedBooking = req.body;
@@ -695,6 +701,29 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
                     </table>
 `).join('');
 
+        // Conditional HTML for partial payment
+        const partialPaymentHtml = booking.udf1 && booking.udf1 !== '0' ? `
+                <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation">
+                    <tbody style="width:100%">
+                        <tr style="width:100%">
+                            <td data-id="__react-email-column">
+                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Partial Payment:</p>
+                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${booking.udf1 ? 'Yes' : 'No'}</p>
+                            </td>
+                            <td data-id="__react-email-column">
+                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Amount Paid:</p>
+                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${booking.udf1}</p>
+                            </td>
+                            <td data-id="__react-email-column" style="float:right">
+                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Due:</p>
+                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${booking.udf2}</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
+                ` : '';
+
         // Assuming you have a function to generate HTML receipt
         const html = `
         <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd" >
@@ -796,7 +825,7 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
                                                                 <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:7px;margin-top:7px;color:#525f7f">Discount</p>
                                                             </td>
                                                             <td data-id="__react-email-column" style="float:right">
-                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:7px;margin-top:7px;color:#525f7f">-₹${booking.discountValue}</p>
+                                                                <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:7px;margin-top:7px;color:#525f7f">${booking.discountValue !== '0' ? '-₹' + booking.discountValue : '₹0'}</p>
                                                             </td>
                                                         </tr>
                                                     </tbody>
@@ -815,31 +844,14 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
                                                 </table>
                                                 <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
                                                 
-                                                <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation">
-                                                <tbody style="width:100%">
-                                                    <tr style="width:100%">
-                                                    <td data-id="__react-email-column">
-                                                        <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Partial Payment:</p>
-                                                        <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${booking.udf1?'Yes':'No'}</p>
-                                                    </td>
-                                                    <td data-id="__react-email-column">
-                                                        <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Amount Paid:</p>
-                                                        <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${booking.udf1}</p>
-                                                    </td>
-                                                    <td data-id="__react-email-column" style="float:right">
-                                                        <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f;text-align:left">Due:</p>
-                                                        <p style="font-size:16px;line-height:16px;margin:16px 0;margin-top:0;color:#525f7f;text-align:left">${booking.udf2}</p>
-                                                    </td>
-                                                    </tr>
-                                                </tbody>
-                                                </table>
-                                                <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
+                                                ${partialPaymentHtml}
+
                                                 <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation">
                                                     <tbody style="width:100%">
                                                         <tr style="width:100%">
                                                             <td data-id="__react-email-column">
                                                                 <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f">Mode</p>
-                                                                <p style="font-size:14px;line-height:14px;margin:16px 0;margin-top:0;color:#525f7f">${booking.paymentMode==='Mixed'? 'Online/Cash': booking.paymentMode}</p>
+                                                                <p style="font-size:14px;line-height:14px;margin:16px 0;margin-top:0;color:#525f7f">${booking.paymentMode === 'Mixed' ? 'Online/Cash' : booking.paymentMode}</p>
                                                             </td>
                                                             <td data-id="__react-email-column" style="float:right">
                                                                 <p style="font-size:16px;line-height:16px;margin:16px 0;margin-bottom:10px;color:#525f7f">Status</p>
