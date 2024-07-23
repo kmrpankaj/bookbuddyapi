@@ -24,8 +24,11 @@ router.get('/getbooking', async (req, res) => {
     }
 })
 
-router.get('/api/bookings', async (req, res) => {
+router.get('/api/bookings', fetchuser, async (req, res) => {
     try {
+        if (!(req.students.role === "Admin" || req.students.role === "Superadmin")) {
+            return res.status(403).send({ error: "Unauthorized access" });
+          }
         const bookings = await Bookings.find();
         res.status(200).json(bookings);
     } catch (error) {
@@ -390,7 +393,7 @@ router.post('/api/direct-webhook', async (req, res) => {
 
         await Promise.all(updates);
 
-        // Optionally, you can call a function to send a receipt or other notifications
+        // Optionally, we can call a function to send a receipt or other notifications
         // const receiptSent = await sendReceiptViaPost(booking.clientTxnId);
 
         // if (!receiptSent) {
