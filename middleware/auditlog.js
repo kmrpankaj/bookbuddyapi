@@ -36,7 +36,6 @@ async function auditLog(req, res, next) {
                     affactedDoc: affactedDoc
                 });
 
-                await auditEntry.save();
                 //console.log('Audit Log:', affactedDoc);
             } else if (req.method !== 'DELETE') {
                 newData = await req.model.findById(req.params.id).lean();
