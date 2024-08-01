@@ -62,9 +62,9 @@ const bookingsSchema = new mongoose.Schema({
     customerMobile: String,
     redirectUrl: String, // URL to redirect to after transaction completion
     // User-defined fields
-    udf1: String,
-    udf2: String,
-    udf3: String,
+    udf1: String, //partial payment amount
+    udf2: String, // Amount due
+    udf3: String, //Notes
     pCash: Number,
     pOnline: Number,
     upi_intent: {

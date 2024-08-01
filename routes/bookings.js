@@ -28,7 +28,7 @@ router.get('/api/bookings', fetchuser, async (req, res) => {
     try {
         if (!(req.students.role === "Admin" || req.students.role === "Superadmin")) {
             return res.status(403).send({ error: "Unauthorized access" });
-          }
+        }
         const bookings = await Bookings.find();
         res.status(200).json(bookings);
     } catch (error) {
@@ -346,8 +346,8 @@ router.post('/create/direct-order', fetchuser, auditLog, async (req, res) => {
 
         await newOrder.save();
         res.locals.newData = newOrder.toObject(); // Store the newly created data in res.locals
-        
-        res.status(200).json({ success: true, message: 'Order created and saved successfully', order: newOrder,  });
+
+        res.status(200).json({ success: true, message: 'Order created and saved successfully', order: newOrder, });
     } catch (error) {
         console.error('Error processing order:', error);
         res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
@@ -437,6 +437,47 @@ router.patch('/api/edit/bookings/:id', fetchuser, auditLog, async (req, res) => 
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+// =======================================================
+// Router: 11: Endpoint Function to handle clearing dues
+const handleClearDues = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const booking = await Bookings.findById(id);
+  
+      if (!booking) {
+        return res.status(404).json({ message: 'Booking not found' });
+      }
+  
+      const udf2Value = parseFloat(booking.udf2) || 0;
+      const udf1Value = parseFloat(booking.udf1) || 0;
+  
+      // Update udf1 by adding udf2 value to it
+      booking.udf1 = (udf1Value + udf2Value).toString();
+  
+      // Set udf2 to '0' and pending to paid
+      booking.udf2 = '0';
+      booking. paymentStatus = 'paid'
+  
+      // Use the values from the frontend request to update pCash and pOnline
+    if (req.body.pCashValue !== undefined) {
+      booking.pCash = (booking.pCash || 0) + parseFloat(req.body.pCashValue);
+    }
+
+    if (req.body.pOnlineValue !== undefined) {
+      booking.pOnline = (booking.pOnline || 0) + parseFloat(req.body.pOnlineValue);
+    }
+
+      await booking.save();
+  
+      res.status(200).json({ message: 'Dues cleared and booking updated', booking });
+    } catch (error) {
+      console.error('Error handling clear dues:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  };
+  
+  // Usage in your route
+  router.patch('/api/clear-dues/:id', fetchuser, auditLog, handleClearDues);
 
 
 // Fetch a single booking by ID
@@ -462,7 +503,7 @@ router.get('/generate-txn-id', async (req, res) => {
     let unique = false;
     let txnId;
     while (!unique) {
-        txnId = Math.floor(1000000000 + Math.random() * 9000000000); // Generates a 10-digit number
+        txnId = Math.floor(10000 + Math.random() * 90000); // Generates a 05-digit number
         // Check if this ID already exists in the database
         const exists = await Bookings.findOne({ clientTxnId: txnId });
         if (!exists) {
@@ -670,7 +711,7 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
                 morning: "06 am to 10 am",
                 afternoon: "10 am to 02 pm",
                 evening: "02 pm to 06 pm",
-                night: "06 pm to 10 am",
+                night: "06 pm to 10 pm",
             };
             return slotMap[slot] || "Time not available";
         };
@@ -864,8 +905,11 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
                                                     </tbody>
                                                 </table>
                                                 <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
-                                                <p style="font-size:12px;line-height:16px;margin:16px 0;color:#8898aa">Terms &amp; Conditions applies*</p>
-                                                <p style="font-size:12px;line-height:16px;margin:16px 0;color:#8898aa">2nd &amp; 3rd Floor, Skyline Tower, Adarsh Nagar, Samastipur</p>
+                                                <p style="font-size:12px;line-height:16px;margin:16px 0;color:#8898aa;margin-bottom:3px;margin-top:3px;text-align:center">Note: This is a computer generated receipt and doesn&#x27;t require any sign.</p>
+                                                <p style="font-size:12px;line-height:16px;margin:16px 0;color:#8898aa;margin-bottom:3px;margin-top:3px;text-align:center">Address: 2nd &amp; 3rd Floor, Skyline Tower, Adarsh Nagar, Samastipur</p>
+                                                <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
+                                                <p style="font-size:12px;line-height:16px;margin:16px 0;color:#8898aa;margin-bottom:3px;margin-top:3px;text-align:center">Terms &amp; Conditions apply*</p>
+                                                <p style="font-size:12px;line-height:16px;margin:16px 0;color:#8898aa;margin-bottom:3px;margin-top:3px;text-align:center">All rights reserved.</p>
                                             </td>
                                         </tr>
                                     </tbody>
