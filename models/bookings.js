@@ -49,6 +49,10 @@ const bookingsSchema = new mongoose.Schema({
         enum: ['Online', 'Cash', 'Mixed'],
         default: 'Online'
     },
+    validityInfo: {
+        type: [String], 
+        default: []
+    },
     // New fields for order creation data
     orderStatus: Boolean,
     msg: String,
