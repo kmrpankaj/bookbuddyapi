@@ -783,7 +783,7 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
                     <p style="font-size:14px;line-height:24px;margin:16px 0;padding-left:15px">Locker: (Valid for one month)</p>
                     </td>
                     <td data-id="__react-email-column" style="float:right">
-                    <p style="font-size:14px;line-height:24px;margin:16px 0;padding-right:15px">₹400</p>
+                    <p style="font-size:14px;line-height:24px;margin:16px 0;padding-right:15px">₹100</p>
                     </td>
                 </tr>
                 </tbody>
