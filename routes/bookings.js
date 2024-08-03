@@ -307,6 +307,7 @@ router.post('/create/direct-order', fetchuser, auditLog, async (req, res) => {
         pOnline,
         pInfo,
         validityInfo,
+        locker,
         customerName,
         customerEmail,
         customerMobile,
@@ -336,6 +337,7 @@ router.post('/create/direct-order', fetchuser, auditLog, async (req, res) => {
             pOnline,
             pInfo,
             validityInfo,
+            locker,
             customerName,
             customerEmail,
             customerMobile,
@@ -771,6 +773,24 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
                 <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
                 ` : '';
 
+        // Locker
+        const lockerHtml = booking.locker && booking.locker === true ? 
+        `
+            <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;color:rgb(51, 51, 51);background-color:rgb(250, 250, 250);border-radius:3px;margin-bottom:1px">
+                <tbody style="width:100%">
+                <tr style="width:100%">
+                    <td data-id="__react-email-column">
+                    <p style="font-size:14px;line-height:24px;margin:16px 0;padding-left:15px">Locker: (Valid for one month)</p>
+                    </td>
+                    <td data-id="__react-email-column" style="float:right">
+                    <p style="font-size:14px;line-height:24px;margin:16px 0;padding-right:15px">₹400</p>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        
+        `: '';
+
         // Assuming you have a function to generate HTML receipt
         const html = `
         <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd" >
@@ -851,7 +871,7 @@ router.post('/send-receipt/:clientTxnId', async (req, res) => {
                                                 </table>
                                                 <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
                                                 ${seatRows}
-                                                
+                                                ${lockerHtml}
                                                 <hr style="width:100%;border:none;border-top:1px solid #eaeaea;border-color:#e6ebf1;margin:20px 0" />
                                                 <table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation">
                                                     <tbody style="width:100%">

@@ -53,6 +53,10 @@ const bookingsSchema = new mongoose.Schema({
         type: [String], 
         default: []
     },
+    locker: {
+        type: Boolean,
+        default: false,
+    },
     // New fields for order creation data
     orderStatus: Boolean,
     msg: String,
