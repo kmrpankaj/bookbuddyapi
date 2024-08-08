@@ -91,7 +91,10 @@ const bookingsSchema = new mongoose.Schema({
       default: 'pending'
     },
     upiTxnId: String, // UPI Transaction ID, received from the API
-    statusRemark: String, // Remark on the transaction status, received from the API
+    statusRemark: {
+        type: [String],
+        default: []
+    }, // Remark on the transaction status, received from the API
     ipAddress: String,
     txnAt: Date, // Transaction Date
     createdAt: Date,
